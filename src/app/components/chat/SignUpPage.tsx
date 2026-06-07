@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SOCKET_URL } from '../../App';
 
 interface SignUpPageProps {
   onLogin: () => void;
@@ -22,7 +23,7 @@ export function SignUpPage({ onLogin, onSubmit, onGoToLanding }: SignUpPageProps
     e.preventDefault();
     setError(null);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/signup', {
+      const res = await fetch(`${SOCKET_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

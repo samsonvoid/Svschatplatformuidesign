@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SOCKET_URL } from '../../App';
 
 interface LoginPageProps {
   onSignUp: () => void;
@@ -20,7 +21,7 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
     e.preventDefault();
     setError(null);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
+      const res = await fetch(`${SOCKET_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
