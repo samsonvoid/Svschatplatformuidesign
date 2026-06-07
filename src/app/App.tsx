@@ -8,7 +8,7 @@ import { LoginPage } from './components/chat/LoginPage';
 import { SettingsView } from './components/chat/SettingsView';
 import { io } from 'socket.io-client';
 
-export const SOCKET_URL = 'http://localhost:5000';
+export const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export interface User {
   id: string;
