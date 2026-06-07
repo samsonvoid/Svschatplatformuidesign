@@ -53,7 +53,13 @@ export function DashboardView({
   // 1. Fetch directory users on mount
   useEffect(() => {
     setIsLoadingUsers(true);
-    fetch(`${SOCKET_URL}/api/auth/users`, { credentials: 'include' })
+    const token = sessionStorage.getItem('collabhub_token');
+    fetch(`${SOCKET_URL}/api/auth/users`, {
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      credentials: 'include'
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.users)) {
@@ -67,7 +73,13 @@ export function DashboardView({
   // 2. Fetch recent activities
   const fetchRecentActivity = () => {
     setIsLoadingActivity(true);
-    fetch(`${SOCKET_URL}/api/chats/recent-activity`, { credentials: 'include' })
+    const token = sessionStorage.getItem('collabhub_token');
+    fetch(`${SOCKET_URL}/api/chats/recent-activity`, {
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      credentials: 'include'
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.activity)) {
@@ -127,9 +139,13 @@ export function DashboardView({
       }
       // Create a new direct message channel
       try {
+        const token = sessionStorage.getItem('collabhub_token');
         const res = await fetch(`${SOCKET_URL}/api/chats`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
           credentials: 'include',
           body: JSON.stringify({
             type: 'direct',

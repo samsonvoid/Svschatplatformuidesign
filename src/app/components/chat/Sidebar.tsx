@@ -27,7 +27,13 @@ export function Sidebar({
   useEffect(() => {
     if (showNewChatModal) {
       setIsLoadingDirectory(true);
-      fetch(`${SOCKET_URL}/api/auth/users`, { credentials: 'include' })
+      const token = sessionStorage.getItem('collabhub_token');
+      fetch(`${SOCKET_URL}/api/auth/users`, {
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'include'
+      })
         .then(res => res.json())
         .then(data => {
           if (data.success) {
@@ -41,9 +47,13 @@ export function Sidebar({
 
   const handleStartDirectMessage = async (userId: string) => {
     try {
+      const token = sessionStorage.getItem('collabhub_token');
       const res = await fetch(`${SOCKET_URL}/api/chats`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         credentials: 'include',
         body: JSON.stringify({
           type: 'direct',

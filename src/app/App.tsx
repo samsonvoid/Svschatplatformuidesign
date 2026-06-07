@@ -145,9 +145,13 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    const token = sessionStorage.getItem('collabhub_token');
     // Clear cookie on backend
     fetch(`${SOCKET_URL}/api/auth/logout`, {
       method: 'POST',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
       credentials: 'include'
     }).catch(err => console.error('[Logout] Failed backend logout:', err));
 
@@ -166,8 +170,14 @@ export default function App() {
   // Verify session integrity on mount
   useEffect(() => {
     const savedUser = sessionStorage.getItem('collabhub_user');
+    const token = sessionStorage.getItem('collabhub_token');
     if (savedUser) {
-      fetch(`${SOCKET_URL}/api/auth/me`, { credentials: 'include' })
+      fetch(`${SOCKET_URL}/api/auth/me`, {
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'include'
+      })
         .then(res => {
           if (res.status === 401 || res.status === 403) {
             handleLogout();
@@ -325,7 +335,13 @@ export default function App() {
 
   // 2. Fetch all user conversations from API
   const fetchChats = () => {
-    fetch(`${SOCKET_URL}/api/chats`, { credentials: 'include' })
+    const token = sessionStorage.getItem('collabhub_token');
+    fetch(`${SOCKET_URL}/api/chats`, {
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      credentials: 'include'
+    })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -354,7 +370,13 @@ export default function App() {
 
     setIsSearching(true);
     const delayDebounceFn = setTimeout(() => {
-      fetch(`${SOCKET_URL}/api/chats/search?q=${encodeURIComponent(searchQuery)}`, { credentials: 'include' })
+      const token = sessionStorage.getItem('collabhub_token');
+      fetch(`${SOCKET_URL}/api/chats/search?q=${encodeURIComponent(searchQuery)}`, {
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'include'
+      })
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) {
@@ -389,7 +411,13 @@ export default function App() {
   // Fetch shared files from API when activeTab is 'files'
   useEffect(() => {
     if (activeTab === 'files' && authView === 'app') {
-      fetch(`${SOCKET_URL}/api/chats/shared-files`, { credentials: 'include' })
+      const token = sessionStorage.getItem('collabhub_token');
+      fetch(`${SOCKET_URL}/api/chats/shared-files`, {
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'include'
+      })
         .then(res => res.json())
         .then(data => {
           if (data && data.success && Array.isArray(data.files)) {
@@ -411,7 +439,13 @@ export default function App() {
     socket.emit('message-read', { conversationId: selectedChatId, userId: currentUser.id });
 
     // Fetch full messages from DB
-    fetch(`${SOCKET_URL}/api/chats/${selectedChatId}/messages`, { credentials: 'include' })
+    const token = sessionStorage.getItem('collabhub_token');
+    fetch(`${SOCKET_URL}/api/chats/${selectedChatId}/messages`, {
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      credentials: 'include'
+    })
       .then(res => res.json())
       .then(msgs => {
         setChats(prevChats => prevChats.map(c => {
@@ -897,10 +931,12 @@ export default function App() {
               localStorage.setItem('collabhub_user', JSON.stringify(updated));
 
               // Persist changes to PostgreSQL database
+              const token = sessionStorage.getItem('collabhub_token');
               fetch(`${SOCKET_URL}/api/auth/profile`, {
                 method: 'PUT',
                 headers: {
-                  'Content-Type': 'application/json'
+                  'Content-Type': 'application/json',
+                  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
                 body: JSON.stringify({ 
                   name: updated.name,
