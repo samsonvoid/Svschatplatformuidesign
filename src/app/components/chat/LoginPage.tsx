@@ -12,6 +12,10 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  const handleSocialLogin = () => {
+    setError('OAuth login (Google, GitHub, Microsoft) is currently under construction. Please use email and password credentials (e.g. samsonprogrammer@gmail.com with password123).');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -147,14 +151,14 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
 
             <div className="grid grid-cols-2 gap-md">
               <button 
-                onClick={onSubmit}
+                onClick={handleSocialLogin}
                 className="flex items-center justify-center gap-sm py-sm px-md border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors font-label-md text-label-md text-on-surface cursor-pointer active:scale-95 duration-100"
               >
                 <img alt="Google Logo" className="w-5 h-5" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKm1Avd-a8pPaCA-5Av75kUyy1bbpCLGkFw7mSaPGZ4lfBLdDT86uiygvF3j57b7rCeXrYkUGGziKXEAddYHTUeVbSJa0SsktqJngiLacOIAWYdpA7ZIHf9eyNBxvuo0qrEs7c7SX1WUE-gCOjH5BgdEX8LRtJ9as20MiUg1lBeoYQWA5GL9k2MeueFwY1tVVBSJPKFopyPBqZt31tN-zjzraiSOFcb4JiDSVjAFpB1_nQ6S1M4hpcyE4W5tGKjThTKcK7u6dXljOG" />
                 Google
               </button>
               <button 
-                onClick={onSubmit}
+                onClick={handleSocialLogin}
                 className="flex items-center justify-center gap-sm py-sm px-md border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors font-label-md text-label-md text-on-surface cursor-pointer active:scale-95 duration-100"
               >
                 <span className="material-symbols-outlined text-[20px]">terminal</span>
@@ -269,14 +273,14 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
           {/* Social Authentication */}
           <div className="grid grid-cols-2 gap-md">
             <button 
-              onClick={onSubmit}
+              onClick={handleSocialLogin}
               className="flex items-center justify-center gap-sm py-md bg-surface-container-lowest border border-outline-variant rounded-lg hover:bg-surface-container transition-colors cursor-pointer active:scale-95 duration-100"
             >
               <img alt="Google Logo" className="w-5 h-5" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKm1Avd-a8pPaCA-5Av75kUyy1bbpCLGkFw7mSaPGZ4lfBLdDT86uiygvF3j57b7rCeXrYkUGGziKXEAddYHTUeVbSJa0SsktqJngiLacOIAWYdpA7ZIHf9eyNBxvuo0qrEs7c7SX1WUE-gCOjH5BgdEX8LRtJ9as20MiUg1lBeoYQWA5GL9k2MeueFwY1tVVBSJPKFopyPBqZt31tN-zjzraiSOFcb4JiDSVjAFpB1_nQ6S1M4hpcyE4W5tGKjThTKcK7u6dXljOG" />
               <span className="font-label-md text-label-md text-on-surface font-bold">Google</span>
             </button>
             <button 
-              onClick={onSubmit}
+              onClick={handleSocialLogin}
               className="flex items-center justify-center gap-sm py-md bg-surface-container-lowest border border-outline-variant rounded-lg hover:bg-surface-container transition-colors cursor-pointer active:scale-95 duration-100"
             >
               <img alt="Microsoft Logo" className="w-5 h-5" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCf0weip3u2J0rUAFELKsB_Cwsu2zWrZYZEJk4Y5X6etO7dMbBN70nM5zdBt401g7I1aaQ8ls__EcNGZbW5RzSw3jTHyeQVzqGOGdQZByAf3Chh25Ja20dyNUtjERMnKHEBEhbedA78a0TdzdUMabTKEFXB-yTipjpYs3iI4JAMEDemPpyiH1zfv-Ij1FQyolzQOghgIMzuSQdWOd18Ek_IJd9LlPNCKANmBpUkUywssDEwQGao0-HbPo7c6XrAVNJkFgzTOd7SbIzO" />

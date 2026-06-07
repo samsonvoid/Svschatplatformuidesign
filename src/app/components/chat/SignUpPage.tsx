@@ -14,6 +14,10 @@ export function SignUpPage({ onLogin, onSubmit, onGoToLanding }: SignUpPageProps
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleSocialSignUp = () => {
+    setError('OAuth signup (Google, GitHub, Microsoft, Apple) is currently under construction. Please register using your full name, email, and password.');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -107,7 +111,7 @@ export function SignUpPage({ onLogin, onSubmit, onGoToLanding }: SignUpPageProps
             <div className="flex flex-row gap-md mb-xl">
               <button 
                 type="button"
-                onClick={onSubmit}
+                onClick={handleSocialSignUp}
                 className="flex items-center justify-center gap-sm flex-1 py-sm px-md border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors text-on-surface font-label-md cursor-pointer active:scale-95 duration-150"
               >
                 <img alt="Google" className="w-5 h-5" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZqKQdnOJQhy0UPqhlz4XBhxKUk7rTcZ-wuBwZJL1izH3Fi38x5hj0mxF7Osix7OHRB_gtv2bXvMCcvkiQ-7g2hZy7a4rJonyfREtF3lgjxiopYCBbfCQ_82yY1bF7IOJI3biLm12kXxki8WLiCA1jZ68__VlKOi0jY49aSmI0S_GGWCu2WUJKGOUnZ6vZ_2R1T7M77R9X7I8qjN8qelFu8VhXKBGDChU59r27qz69ijsbuvpMujRWpTfvPfOX3T2zembMZ_xP0fYQ" />
@@ -115,7 +119,7 @@ export function SignUpPage({ onLogin, onSubmit, onGoToLanding }: SignUpPageProps
               </button>
               <button 
                 type="button"
-                onClick={onSubmit}
+                onClick={handleSocialSignUp}
                 className="flex items-center justify-center gap-sm flex-1 py-sm px-md border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors text-on-surface font-label-md cursor-pointer active:scale-95 duration-150"
               >
                 <span className="material-symbols-outlined text-xl">terminal</span>
@@ -314,20 +318,20 @@ export function SignUpPage({ onLogin, onSubmit, onGoToLanding }: SignUpPageProps
             </div>
             <div className="grid grid-cols-3 gap-md">
               <button 
-                onClick={onSubmit}
+                onClick={handleSocialSignUp}
                 className="flex items-center justify-center py-md border border-outline-variant rounded-lg bg-surface-container-lowest hover:bg-surface-container-low transition-colors cursor-pointer active:scale-95 duration-100"
               >
                 <img alt="Google" className="w-6 h-6" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBtYk2t9LwpudUT0P7_i2y7iuVF8Zpnr5C_98F-NejK0O9wawXIx2uBZbxVal28VlFlKpLCuHkuqqE5kbfGox5Q3hqBT6zdBiMjdhealzfwHF7rfGNFQAkEu868QQy3WjdG0a2RX4v4BfHiiOoRhoCsJvFv9htPpVlScgHGdWeg3UcND2AGolWU5JMKz-HwDioQzHjF4bDQhHnEVIpGyLV2KRUejLmm2PEBo_n_JOv4BM-j02NGkcywxzTBhRYnXCj1cbyz4PJ9QOqk" />
               </button>
               <button 
-                onClick={onSubmit}
+                onClick={handleSocialSignUp}
                 className="flex items-center justify-center py-md border border-outline-variant rounded-lg bg-surface-container-lowest hover:bg-surface-container-low transition-colors cursor-pointer active:scale-95 duration-100"
               >
                 <img alt="Microsoft" className="w-6 h-6" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBGcMLrfdipY2KTrPFdoQSMNW5Y157II20FdST85J0enCdmzmcz800jlOl_GVd1KdrvsqejzSQU66OKGrub7lw-Q3IWJzhelOJ-McUdPr-uk2yggbaU8FSPAxfI2xY4MW8XThtUHyG8MB8m8lC_vlN4sfw2WBGfaGPnwu0P38ovX9nikRYo9V_c0n5tMeJP12IYnKEV-EjCx-siOHGdqF-j6wCO_zWog55Ffci6D571DSltaDQwqetY8WXySBz7qePUCFELaHwb6vBc" />
               </button>
               <button 
                 type="button"
-                onClick={onSubmit}
+                onClick={handleSocialSignUp}
                 className="flex items-center justify-center py-md border border-outline-variant rounded-lg bg-surface-container-lowest hover:bg-surface-container-low transition-colors cursor-pointer active:scale-95 duration-100 text-on-surface"
               >
                 <span className="material-symbols-outlined text-[26px]" style={{ fontVariationSettings: "'FILL' 1" }}>ios</span>
