@@ -1,11 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
 import type { Chat, User } from '../../App';
+import { formatFileSize } from '../../App';
+
+const EMOJI_CATEGORIES = {
+  smileys: { icon: '😀', label: 'Smileys', emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '🥱', '😴', '😷', '🤔'] },
+  gestures: { icon: '👍', label: 'Gestures', emojis: ['👍', '👎', '👊', '✊', '🤛', '🤜', '🤝', '🙌', '👏', '🙏', '👋', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '💪', '🧠', '👀'] },
+  hearts: { icon: '❤️', label: 'Symbols', emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '🌟', '⭐', '✨', '⚡', '🔥'] },
+  activities: { icon: '🎉', label: 'Activities', emojis: ['🎉', '🎊', '🎈', '🎂', '🎄', '🎆', '🎇', '🧨', '🎀', '🎁', '🏆', '🥇', '🥈', '🥉', '⚽', '🏀', '🏈', '🎾', '🎮', '🕹️', '🎲', '🧩'] },
+  objects: { icon: '💡', label: 'Objects', emojis: ['💡', '💻', '📱', '⌨️', '🖥️', '📷', '📹', '📞', '🎧', '📁', '📂', '📅', '📊', '📌', '📍', '📎', '🔒', '🔓', '🔑', '🔨', '🔧'] }
+};
 
 interface ChatWindowProps {
   chat: Chat | undefined;
   currentUser: User;
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, attachment?: { name: string; type: string; size: number; data: string }) => void;
   socket?: any;
   onBack?: () => void;
 }
@@ -20,10 +29,23 @@ export function ChatWindow({
   const [messageInput, setMessageInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [typingUser, setTypingUser] = useState<string>('');
+  const [typingUserAvatar, setTypingUserAvatar] = useState<string>('');
   const [isInfoOpen, setIsInfoOpen] = useState(true);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const mainScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiCategory, setEmojiCategory] = useState<keyof typeof EMOJI_CATEGORIES>('smileys');
+  const [selectedFile, setSelectedFile] = useState<{ name: string; type: string; size: number; data: string } | null>(null);
+
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Refs for tracking local client typing debouncing
+  const localTypingRef = useRef(false);
+  const typingTimeoutRef = useRef<any>(null);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
@@ -43,14 +65,20 @@ export function ChatWindow({
       if (data.conversationId === chat.id) {
         setIsTyping(data.isTyping);
         setTypingUser(data.name);
+        setTypingUserAvatar(data.avatar || '');
       }
     };
 
     socket.on('typing-status', handleTypingStatus);
 
-    // Reset typing on chat switch
+    // Reset local and remote typing states on chat switch
     setIsTyping(false);
     setTypingUser('');
+    setTypingUserAvatar('');
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    localTypingRef.current = false;
 
     return () => {
       socket.off('typing-status', handleTypingStatus);
@@ -58,12 +86,17 @@ export function ChatWindow({
   }, [socket, chat?.id]);
 
   const handleSend = () => {
-    if (messageInput.trim()) {
-      onSendMessage(messageInput);
+    if (messageInput.trim() || selectedFile) {
+      onSendMessage(messageInput, selectedFile || undefined);
       setMessageInput('');
+      setSelectedFile(null);
       
       // Clear typing status immediately on send
       if (socket && chat) {
+        localTypingRef.current = false;
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
         socket.emit('typing', {
           conversationId: chat.id,
           userId: currentUser.id,
@@ -74,6 +107,125 @@ export function ChatWindow({
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB limit
+    if (file.size > MAX_FILE_SIZE) {
+      alert("The selected file is too large. Attachments are limited to a maximum of 25 MB.");
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedFile({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        data: reader.result as string
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handlePasteData = (clipboardData: DataTransfer | null, preventDefault: () => void) => {
+    if (!clipboardData) return;
+    const items = clipboardData.items;
+    const files = clipboardData.files;
+
+    // A. Check files list first (modern standard for pasted screen snapshots)
+    if (files && files.length > 0) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.type.startsWith('image/')) {
+          preventDefault();
+          const MAX_FILE_SIZE = 25 * 1024 * 1024;
+          if (file.size > MAX_FILE_SIZE) {
+            alert("The pasted image is too large. Attachments are limited to a maximum of 25 MB.");
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => {
+            setSelectedFile({
+              name: `pasted_image_${Date.now()}.png`,
+              type: file.type || 'image/png',
+              size: file.size,
+              data: reader.result as string
+            });
+          };
+          reader.readAsDataURL(file);
+          inputRef.current?.focus();
+          return;
+        }
+      }
+    }
+
+    // B. Check items list (fallback / backup)
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf('image') !== -1) {
+          const file = item.getAsFile();
+          if (!file) continue;
+
+          preventDefault();
+          const MAX_FILE_SIZE = 25 * 1024 * 1024;
+          if (file.size > MAX_FILE_SIZE) {
+            alert("The pasted image is too large. Attachments are limited to a maximum of 25 MB.");
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => {
+            setSelectedFile({
+              name: `pasted_image_${Date.now()}.png`,
+              type: file.type || 'image/png',
+              size: file.size,
+              data: reader.result as string
+            });
+          };
+          reader.readAsDataURL(file);
+          inputRef.current?.focus();
+          break;
+        }
+      }
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    handlePasteData(e.clipboardData, () => e.preventDefault());
+  };
+
+  const handleEmojiClick = (emoji: string) => {
+    setMessageInput(prev => prev + emoji);
+    inputRef.current?.focus();
+  };
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      handlePasteData(e.clipboardData, () => e.preventDefault());
+    };
+
+    window.addEventListener('paste', handleGlobalPaste);
+    return () => {
+      window.removeEventListener('paste', handleGlobalPaste);
+    };
+  }, [chat?.id]);
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -82,14 +234,51 @@ export function ChatWindow({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement> | React.ChangeEvent<HTMLInputElement>) => {
-    setMessageInput(e.target.value);
+    const val = e.target.value;
+    setMessageInput(val);
+    
     if (socket && chat) {
-      socket.emit('typing', {
-        conversationId: chat.id,
-        userId: currentUser.id,
-        name: currentUser.name,
-        isTyping: e.target.value.trim().length > 0
-      });
+      // 1. If text is cleared, stop typing indicator immediately
+      if (val.trim().length === 0 && localTypingRef.current) {
+        localTypingRef.current = false;
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+        socket.emit('typing', {
+          conversationId: chat.id,
+          userId: currentUser.id,
+          name: currentUser.name,
+          isTyping: false
+        });
+      }
+      // 2. If we weren't flagged as typing, notify server that we started typing
+      else if (!localTypingRef.current && val.trim().length > 0) {
+        localTypingRef.current = true;
+        socket.emit('typing', {
+          conversationId: chat.id,
+          userId: currentUser.id,
+          name: currentUser.name,
+          isTyping: true
+        });
+      }
+
+      // 3. Reset debouncing timeout to trigger isTyping: false after 2.5s of no key strokes
+      if (val.trim().length > 0) {
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+        typingTimeoutRef.current = setTimeout(() => {
+          if (localTypingRef.current) {
+            localTypingRef.current = false;
+            socket.emit('typing', {
+              conversationId: chat.id,
+              userId: currentUser.id,
+              name: currentUser.name,
+              isTyping: false
+            });
+          }
+        }, 2500);
+      }
     }
   };
 
@@ -223,16 +412,28 @@ export function ChatWindow({
                   isOwn={message.senderId === currentUser.id}
                   senderName={senderName}
                   isGroup={isGroup}
+                  onDeleteMessage={(messageId) => {
+                    if (socket && chat) {
+                      socket.emit('delete-message', { messageId, conversationId: chat.id });
+                    }
+                  }}
                 />
               );
             })}
 
             {/* Typing Indicator */}
             {isTyping && (
-              <div className="flex flex-col gap-xs max-w-[85%] self-start items-start">
+              <div className="flex flex-col gap-xs max-w-[85%] self-start items-start animate-fade-in">
                 <div className="flex items-center gap-sm mb-1 px-1">
-                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center overflow-hidden">
-                    <span className="font-label-sm text-white text-[10px] font-bold">{typingUser.substring(0, 2).toUpperCase()}</span>
+                  <div className={`w-6 h-6 rounded-full ${
+                    typingUser === 'Jamali' ? 'bg-outline-variant text-on-surface' :
+                    typingUser === 'Neema' ? 'bg-secondary text-white' :
+                    typingUser === 'Fatuma' ? 'bg-tertiary-container text-on-tertiary' :
+                    'bg-primary-fixed-dim text-on-primary-fixed'
+                  } flex items-center justify-center overflow-hidden`}>
+                    <span className="font-label-sm text-[10px] font-bold">
+                      {typingUserAvatar || typingUser.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                    </span>
                   </div>
                   <span className="font-label-md text-on-surface-variant font-semibold">{typingUser}</span>
                   <span className="font-label-sm text-outline italic text-[11px]">typing...</span>
@@ -262,28 +463,107 @@ export function ChatWindow({
         </main>
 
         {/* Message Input Area */}
-        <footer className="p-lg bg-surface border-t border-outline-variant flex-shrink-0">
+        <footer className="p-lg bg-surface border-t border-outline-variant flex-shrink-0 relative">
+          
+          {/* File Attachment Preview Bar */}
+          {selectedFile && (
+            <div className="mb-md p-sm bg-surface-container-low border border-outline-variant rounded-xl flex items-center justify-between animate-fade-in">
+              <div className="flex items-center gap-md min-w-0">
+                {selectedFile.type.startsWith('image/') ? (
+                  <div className="w-12 h-12 rounded bg-surface-container-high border border-outline-variant overflow-hidden flex-shrink-0">
+                    <img src={selectedFile.data} className="w-full h-full object-cover" alt="Selected thumbnail" />
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 border border-primary/20">
+                    <span className="material-symbols-outlined">description</span>
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="font-label-md text-label-md font-bold text-on-surface truncate">{selectedFile.name}</p>
+                  <p className="text-[10px] text-on-surface-variant opacity-70">{formatFileSize(selectedFile.size)} • Ready to send</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedFile(null)}
+                className="p-sm hover:bg-surface-container rounded-full text-on-surface-variant hover:text-red-500 transition-colors cursor-pointer border-none bg-transparent"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+          )}
+
+          {/* Emoji Picker Popover */}
+          {showEmojiPicker && (
+            <div ref={emojiPickerRef} className="absolute bottom-20 right-lg z-50 w-[320px] h-[340px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-outline-variant rounded-xl shadow-xl flex flex-col overflow-hidden animate-scale-up">
+              {/* Category tabs */}
+              <div className="flex justify-between border-b border-outline-variant/30 p-xs bg-surface-container-low">
+                {Object.entries(EMOJI_CATEGORIES).map(([key, cat]) => (
+                  <button
+                    key={key}
+                    onClick={() => setEmojiCategory(key as any)}
+                    className={`flex-1 py-1.5 rounded-lg text-lg transition-all cursor-pointer border-none bg-transparent ${
+                      emojiCategory === key ? 'bg-primary/10 border-b-2 border-primary scale-105' : 'hover:bg-surface-container opacity-60'
+                    }`}
+                    title={cat.label}
+                  >
+                    {cat.icon}
+                  </button>
+                ))}
+              </div>
+              {/* Emojis grid */}
+              <div className="flex-1 grid grid-cols-6 gap-xs p-sm overflow-y-auto hide-scrollbar">
+                {EMOJI_CATEGORIES[emojiCategory].emojis.map((emoji, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleEmojiClick(emoji)}
+                    className="w-10 h-10 text-2xl flex items-center justify-center rounded-lg hover:bg-primary/10 active:scale-90 transition-all cursor-pointer border-none bg-transparent"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-md bg-surface-container-low border border-outline-variant rounded-xl px-md py-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
-            <button className="p-sm hover:bg-surface-container rounded-lg text-on-surface-variant transition-colors cursor-pointer flex-shrink-0">
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="p-sm hover:bg-surface-container rounded-lg text-on-surface-variant transition-colors cursor-pointer flex-shrink-0"
+              title="Attach File"
+            >
               <span className="material-symbols-outlined">attach_file</span>
             </button>
             <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <input
               type="text"
+              ref={inputRef}
               value={messageInput}
               onChange={handleInputChange}
               onKeyPress={handleKeyPress}
+              onPaste={handlePaste}
               placeholder="Type a message..."
               className="flex-1 bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder:text-outline-variant"
               style={{ border: 'none', outline: 'none' }}
             />
             <div className="flex items-center gap-sm flex-shrink-0">
-              <button className="p-sm hover:bg-surface-container rounded-lg text-on-surface-variant transition-colors cursor-pointer">
+              <button 
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className={`p-sm hover:bg-surface-container rounded-lg text-on-surface-variant transition-colors cursor-pointer ${
+                  showEmojiPicker ? 'bg-primary-container/20 text-primary font-bold' : ''
+                }`}
+                title="Choose Emoji"
+              >
                 <span className="material-symbols-outlined">sentiment_satisfied</span>
               </button>
               <button
                 onClick={handleSend}
-                disabled={!messageInput.trim()}
-                className="w-10 h-10 bg-primary text-on-primary disabled:bg-slate-200 disabled:text-slate-400 rounded-lg flex items-center justify-center hover:opacity-90 active:scale-90 transition-all cursor-pointer shadow-sm"
+                disabled={!messageInput.trim() && !selectedFile}
+                className="w-10 h-10 bg-primary text-on-primary disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-600 rounded-lg flex items-center justify-center hover:opacity-90 active:scale-90 transition-all cursor-pointer shadow-sm border-none"
               >
                 <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>send</span>
               </button>
@@ -314,65 +594,50 @@ export function ChatWindow({
           <div className="flex flex-col gap-md">
             <h4 className="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-widest text-[11px] opacity-70">Shared Files</h4>
             <div className="grid grid-cols-1 gap-sm">
-              {isGroup ? (
-                <>
-                  <div className="flex items-start gap-sm p-sm bg-surface-container-low border border-outline-variant rounded-lg hover:bg-surface-container transition-colors">
-                    <div className="w-10 h-10 rounded bg-red-100 flex items-center justify-center text-red-600 flex-shrink-0 mt-unit">
-                      <span className="material-symbols-outlined">description</span>
+              {(() => {
+                const sharedConversationFiles = (chat?.messages || []).filter(m => m.attachment).map(m => m.attachment!);
+                if (sharedConversationFiles.length === 0) {
+                  return <p className="text-xs text-on-surface-variant italic py-sm text-center">No shared files in this chat.</p>;
+                }
+                return sharedConversationFiles.map((att, idx) => {
+                  const isImg = att.type.startsWith('image/');
+                  const iconName = isImg ? 'image' : 
+                    att.type.includes('pdf') ? 'picture_as_pdf' :
+                    att.type.includes('zip') || att.type.includes('rar') ? 'folder_zip' :
+                    att.type.includes('spreadsheet') || att.type.includes('xlsx') || att.type.includes('csv') ? 'table_chart' :
+                    'description';
+                  const bgClass = isImg ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600';
+                  
+                  return (
+                    <div key={idx} className="flex items-start gap-sm p-sm bg-surface-container-low border border-outline-variant rounded-lg hover:bg-surface-container transition-colors">
+                      <div className={`w-10 h-10 rounded ${bgClass} flex items-center justify-center flex-shrink-0 mt-unit`}>
+                        <span className="material-symbols-outlined">{iconName}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-label-md text-label-md text-on-surface truncate font-semibold">{att.name}</p>
+                        <p className="text-[10px] text-on-surface-variant opacity-60 uppercase">{formatFileSize(att.size)} • {isImg ? 'IMAGE' : 'FILE'}</p>
+                        <div className="mt-xs flex gap-xs items-center">
+                          <button 
+                            onClick={() => window.open(att.url.startsWith('data:') ? att.url : `http://localhost:5000${att.url}`, '_blank')}
+                            className="flex items-center gap-xs bg-primary/10 hover:bg-primary text-primary hover:text-white px-md py-1 rounded-full font-label-sm text-[10px] font-bold transition-all active:scale-95 cursor-pointer shadow-sm border border-primary/20 w-fit border-none"
+                          >
+                            <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                            Open
+                          </button>
+                          <a 
+                            href={att.url.startsWith('data:') ? att.url : `http://localhost:5000${att.url}`} 
+                            download={att.name}
+                            className="flex items-center gap-xs bg-primary/10 hover:bg-primary text-primary hover:text-white px-md py-1 rounded-full font-label-sm text-[10px] font-bold transition-all active:scale-95 cursor-pointer shadow-sm border border-primary/20 w-fit no-underline"
+                          >
+                            <span className="material-symbols-outlined text-[12px]">download</span>
+                            Download
+                          </a>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-label-md text-label-md text-on-surface truncate font-semibold">design_specs.pdf</p>
-                      <p className="text-[10px] text-on-surface-variant opacity-60 uppercase">2.4 MB • PDF</p>
-                      <button className="mt-xs flex items-center gap-xs bg-primary/10 hover:bg-primary text-primary hover:text-white px-md py-1 rounded-full font-label-sm text-[10px] font-bold transition-all active:scale-95 cursor-pointer shadow-sm border border-primary/20 w-fit">
-                        <span className="material-symbols-outlined text-[12px]">download</span>
-                        Download
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-sm p-sm bg-surface-container-low border border-outline-variant rounded-lg hover:bg-surface-container transition-colors">
-                    <div className="w-10 h-10 rounded bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0 mt-unit">
-                      <span className="material-symbols-outlined">image</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-label-md text-label-md text-on-surface truncate font-semibold">hero_banner_v2.png</p>
-                      <p className="text-[10px] text-on-surface-variant opacity-60 uppercase">1.1 MB • PNG</p>
-                      <button className="mt-xs flex items-center gap-xs bg-primary/10 hover:bg-primary text-primary hover:text-white px-md py-1 rounded-full font-label-sm text-[10px] font-bold transition-all active:scale-95 cursor-pointer shadow-sm border border-primary/20 w-fit">
-                        <span className="material-symbols-outlined text-[12px]">download</span>
-                        Download
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-start gap-sm p-sm bg-surface-container-low border border-outline-variant rounded-lg hover:bg-surface-container transition-colors">
-                    <div className="w-10 h-10 rounded bg-red-100 flex items-center justify-center text-red-600 flex-shrink-0 mt-unit">
-                      <span className="material-symbols-outlined">description</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-label-md text-label-md text-on-surface truncate font-semibold">project_brief.pdf</p>
-                      <p className="text-[10px] text-on-surface-variant opacity-60 uppercase">1.4 MB • PDF</p>
-                      <button className="mt-xs flex items-center gap-xs bg-primary/10 hover:bg-primary text-primary hover:text-white px-md py-1 rounded-full font-label-sm text-[10px] font-bold transition-all active:scale-95 cursor-pointer shadow-sm border border-primary/20 w-fit">
-                        <span className="material-symbols-outlined text-[12px]">download</span>
-                        Download
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-sm p-sm bg-surface-container-low border border-outline-variant rounded-lg hover:bg-surface-container transition-colors">
-                    <div className="w-10 h-10 rounded bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0 mt-unit">
-                      <span className="material-symbols-outlined">image</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-label-md text-label-md text-on-surface truncate font-semibold">workspace_draft.png</p>
-                      <p className="text-[10px] text-on-surface-variant opacity-60 uppercase">800 KB • PNG</p>
-                      <button className="mt-xs flex items-center gap-xs bg-primary/10 hover:bg-primary text-primary hover:text-white px-md py-1 rounded-full font-label-sm text-[10px] font-bold transition-all active:scale-95 cursor-pointer shadow-sm border border-primary/20 w-fit">
-                        <span className="material-symbols-outlined text-[12px]">download</span>
-                        Download
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
+                  );
+                });
+              })()}
             </div>
           </div>
 

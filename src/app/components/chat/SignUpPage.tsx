@@ -12,11 +12,34 @@ export function SignUpPage({ onLogin, onSubmit, onGoToLanding }: SignUpPageProps
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate signup submission and log in
-    onSubmit();
+    setError(null);
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: fullName, email, password })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Registration failed.');
+      }
+      
+      // Successfully authenticated!
+      sessionStorage.setItem('collabhub_token', data.token);
+      if (data.user) {
+        sessionStorage.setItem('collabhub_user', JSON.stringify(data.user));
+      }
+      onSubmit();
+    } catch (err: any) {
+      console.error('[SignUp Error]:', err.message);
+      setError(err.message);
+    }
   };
 
   return (
@@ -108,6 +131,11 @@ export function SignUpPage({ onLogin, onSubmit, onGoToLanding }: SignUpPageProps
 
             {/* Registration Form */}
             <form onSubmit={handleSubmit} className="space-y-lg">
+              {error && (
+                <div className="p-md rounded-lg bg-error/10 border border-error/20 text-error font-body-sm select-none">
+                  {error}
+                </div>
+              )}
               <div className="space-y-xs">
                 <label className="font-label-md text-label-md text-on-surface-variant font-bold ml-xs" htmlFor="desktop-name">Full Name</label>
                 <input 
@@ -207,6 +235,11 @@ export function SignUpPage({ onLogin, onSubmit, onGoToLanding }: SignUpPageProps
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-lg">
+            {error && (
+              <div className="p-md rounded-lg bg-error/10 border border-error/20 text-error font-body-sm select-none">
+                {error}
+              </div>
+            )}
             {/* Name Field */}
             <div className="space-y-xs">
               <label className="font-label-md text-label-md text-on-surface-variant ml-xs font-bold" htmlFor="mobile-name">Full Name</label>

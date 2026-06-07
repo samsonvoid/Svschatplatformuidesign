@@ -1,21 +1,67 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChatListItem } from './ChatListItem';
 import type { User, Chat } from '../../App';
+import { SOCKET_URL } from '../../App';
 
 interface SidebarProps {
   currentUser: User;
   chats: Chat[];
   selectedChatId: string | null;
   onSelectChat: (chatId: string) => void;
+  onRefreshChats: () => void;
 }
 
 export function Sidebar({
   currentUser,
   chats,
   selectedChatId,
-  onSelectChat
+  onSelectChat,
+  onRefreshChats
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [directoryUsers, setDirectoryUsers] = useState<User[]>([]);
+  const [isLoadingDirectory, setIsLoadingDirectory] = useState(false);
+
+  // Fetch company directory when modal opens
+  useEffect(() => {
+    if (showNewChatModal) {
+      setIsLoadingDirectory(true);
+      fetch(`${SOCKET_URL}/api/auth/users`, { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setDirectoryUsers(data.users);
+          }
+        })
+        .catch(err => console.error('Failed to load directory:', err))
+        .finally(() => setIsLoadingDirectory(false));
+    }
+  }, [showNewChatModal]);
+
+  const handleStartDirectMessage = async (userId: string) => {
+    try {
+      const res = await fetch(`${SOCKET_URL}/api/chats`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          type: 'direct',
+          members: [userId]
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowNewChatModal(false);
+        onRefreshChats(); // Ask App.tsx to reload the chats
+        setTimeout(() => {
+          onSelectChat(data.conversationId);
+        }, 500); // Give the refresh a split second
+      }
+    } catch (err) {
+      console.error('Failed to start chat:', err);
+    }
+  };
 
   const filteredChats = chats.filter(chat => {
     const name = chat.type === 'group' ? chat.group!.name : chat.user!.name;
@@ -64,7 +110,10 @@ export function Sidebar({
       <div className="px-md pt-lg pb-md border-b border-slate-200">
         <div className="flex justify-between items-end mb-md">
           <h2 className="font-headline-md text-headline-md text-on-surface">Messages</h2>
-          <button className="bg-primary hover:bg-primary/95 text-on-primary px-md py-sm rounded-lg flex items-center gap-xs shadow-sm active:scale-95 transition-transform cursor-pointer">
+          <button 
+            onClick={() => setShowNewChatModal(true)}
+            className="bg-primary hover:bg-primary/95 text-on-primary px-md py-sm rounded-lg flex items-center gap-xs shadow-sm active:scale-95 transition-transform cursor-pointer"
+          >
             <span className="material-symbols-outlined text-[18px]">edit</span>
             <span className="font-label-md text-label-md">New</span>
           </button>
@@ -144,6 +193,54 @@ export function Sidebar({
           </div>
         )}
       </div>
+
+      {/* NEW CHAT MODAL */}
+      {showNewChatModal && (
+        <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-md">
+          <div className="bg-surface w-full max-w-md rounded-2xl shadow-xl flex flex-col max-h-[80%] overflow-hidden border border-outline-variant">
+            <div className="px-lg py-md border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+              <h3 className="font-headline-sm text-headline-sm font-bold">Start a New Chat</h3>
+              <button 
+                onClick={() => setShowNewChatModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-surface-variant flex items-center justify-center text-on-surface-variant cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            
+            <div className="p-md overflow-y-auto flex-1 hide-scrollbar">
+              {isLoadingDirectory ? (
+                <div className="flex justify-center p-xl">
+                  <span className="material-symbols-outlined animate-spin text-primary text-[32px]">progress_activity</span>
+                </div>
+              ) : directoryUsers.length === 0 ? (
+                <div className="text-center p-xl text-on-surface-variant">
+                  No other users found in the directory.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-sm">
+                  {directoryUsers.map(user => (
+                    <div 
+                      key={user.id}
+                      onClick={() => handleStartDirectMessage(user.id)}
+                      className="flex items-center gap-md p-md bg-surface-container-lowest hover:bg-surface-container-low rounded-xl cursor-pointer border border-transparent hover:border-outline-variant transition-colors"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-lg flex-shrink-0">
+                        {user.avatar}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-label-lg text-label-lg font-bold text-on-surface truncate">{user.name}</h4>
+                        <p className="font-body-sm text-body-sm text-on-surface-variant truncate">{user.email}</p>
+                      </div>
+                      <span className="material-symbols-outlined text-on-surface-variant opacity-50">chat</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

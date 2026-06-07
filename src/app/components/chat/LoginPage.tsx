@@ -10,11 +10,34 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate login and enter dashboard
-    onSubmit();
+    setError(null);
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Authentication failed.');
+      }
+      
+      // Successfully authenticated!
+      sessionStorage.setItem('collabhub_token', data.token);
+      if (data.user) {
+        sessionStorage.setItem('collabhub_user', JSON.stringify(data.user));
+      }
+      onSubmit();
+    } catch (err: any) {
+      console.error('[Login Error]:', err.message);
+      setError(err.message);
+    }
   };
 
   return (
@@ -63,6 +86,11 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-lg">
+              {error && (
+                <div className="p-md rounded-lg bg-error/10 border border-error/20 text-error font-body-sm select-none">
+                  {error}
+                </div>
+              )}
               <div className="space-y-sm">
                 <label className="font-label-md text-label-md text-on-surface-variant block font-bold ml-xs" htmlFor="desktop-email">Email Address</label>
                 <input 
@@ -179,6 +207,11 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-md">
+            {error && (
+              <div className="p-md rounded-lg bg-error/10 border border-error/20 text-error font-body-sm select-none">
+                {error}
+              </div>
+            )}
             {/* Email Address */}
             <div className="flex flex-col gap-xs">
               <label className="font-label-md text-label-md text-on-surface-variant ml-1 font-bold" htmlFor="mobile-email">Email Address</label>
