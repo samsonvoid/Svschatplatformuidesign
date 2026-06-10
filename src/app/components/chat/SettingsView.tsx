@@ -3,6 +3,8 @@ import type { User } from '../../App';
 
 interface SettingsViewProps {
   currentUser: User;
+  deferredPrompt?: any;
+  onClearPrompt?: () => void;
   onUpdateUser: (updated: User) => void;
   onLogout: () => void;
 }
@@ -21,7 +23,13 @@ const ACCENT_COLORS = [
   { label: 'Sleek Dark Accent', value: '#434656', bg: 'bg-[#434656]' },
 ];
 
-export function SettingsView({ currentUser, onUpdateUser, onLogout }: SettingsViewProps) {
+export function SettingsView({ 
+  currentUser, 
+  deferredPrompt,
+  onClearPrompt,
+  onUpdateUser, 
+  onLogout 
+}: SettingsViewProps) {
   // Profile Form States
   const [fullName, setFullName] = useState(currentUser.name);
   const [username, setUsername] = useState(currentUser.username || 'arivera_dev');
@@ -479,6 +487,40 @@ export function SettingsView({ currentUser, onUpdateUser, onLogout }: SettingsVi
                   </div>
                   <span className="material-symbols-outlined text-on-surface-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
                 </button>
+              </div>
+            </section>
+
+            {/* CARD 4.5: DOWNLOAD APP (PWA) */}
+            <section className="bg-surface-container-lowest dark:bg-surface-container-low border border-outline-variant dark:border-outline rounded-xl p-lg shadow-sm space-y-md animate-fade-in">
+              <h2 className="font-headline-sm text-headline-sm text-on-surface dark:text-primary-fixed-dim border-b border-outline-variant/30 pb-sm font-bold">App Installation</h2>
+              <div className="space-y-md">
+                <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                  Install CollabHub on your device for a standalone, full-screen workspace, desktop notifications, and faster load times.
+                </p>
+                {deferredPrompt ? (
+                  <button
+                    onClick={() => {
+                      if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        deferredPrompt.userChoice.then((choiceResult: any) => {
+                          if (choiceResult.outcome === 'accepted') {
+                            showToast("CollabHub installation initiated!", "success");
+                          }
+                          if (onClearPrompt) onClearPrompt();
+                        });
+                      }
+                    }}
+                    className="w-full py-md bg-primary hover:bg-primary/95 text-on-primary font-bold font-label-md text-label-md rounded-lg flex items-center justify-center gap-sm shadow-sm active:scale-95 transition-all cursor-pointer border-none"
+                  >
+                    <span className="material-symbols-outlined">download_for_offline</span>
+                    Install CollabHub App
+                  </button>
+                ) : (
+                  <div className="p-md bg-slate-50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50 rounded-lg flex items-center gap-md text-on-surface-variant font-body-sm">
+                    <span className="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+                    <span>App is already installed, or installation is handled by your browser's menu.</span>
+                  </div>
+                )}
               </div>
             </section>
 

@@ -76,6 +76,7 @@ export default function App() {
     localStorage.setItem('collabhub_active_tab', tab);
   };
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>([]);
   const [sharedFiles, setSharedFiles] = useState<any[]>([]);
@@ -97,6 +98,17 @@ export default function App() {
       status: 'online'
     };
   });
+
+  // Listen for PWA installation prompt trigger
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      console.log('[PWA] beforeinstallprompt event fired and captured.');
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
 
   // Inactivity Timeout (15 minutes)
   useEffect(() => {
@@ -926,43 +938,49 @@ export default function App() {
           )}
 
           {activeTab === 'settings' && (
-            <SettingsView currentUser={currentUser} onUpdateUser={(updated) => {
-              setCurrentUser(updated);
-              localStorage.setItem('collabhub_user', JSON.stringify(updated));
+            <SettingsView 
+              currentUser={currentUser} 
+              deferredPrompt={deferredPrompt}
+              onClearPrompt={() => setDeferredPrompt(null)}
+              onUpdateUser={(updated) => {
+                setCurrentUser(updated);
+                localStorage.setItem('collabhub_user', JSON.stringify(updated));
 
-              // Persist changes to PostgreSQL database
-              const token = sessionStorage.getItem('collabhub_token');
-              fetch(`${SOCKET_URL}/api/auth/profile`, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                },
-                body: JSON.stringify({ 
-                  name: updated.name,
-                  username: updated.username,
-                  bio: updated.bio,
-                  theme: updated.theme,
-                  accentColor: updated.accentColor,
-                  fontSize: updated.fontSize,
-                  newMessagesAlert: updated.newMessagesAlert,
-                  mentionsOnlyAlert: updated.mentionsOnlyAlert,
-                  soundEffectsAlert: updated.soundEffectsAlert
-                }),
-                credentials: 'include'
-              })
-              .then(res => {
-                if (!res.ok) throw new Error('Failed to update profile on server');
-                return res.json();
-              })
-              .then(data => {
-                if (data.success && data.user) {
-                  setCurrentUser(data.user);
-                  sessionStorage.setItem('collabhub_user', JSON.stringify(data.user));
-                }
-              })
-              .catch(err => console.error('[Profile Update] Error syncing to database:', err));
-            }} onLogout={handleLogout} />
+                // Persist changes to PostgreSQL database
+                const token = sessionStorage.getItem('collabhub_token');
+                fetch(`${SOCKET_URL}/api/auth/profile`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                  },
+                  body: JSON.stringify({ 
+                    name: updated.name,
+                    username: updated.username,
+                    bio: updated.bio,
+                    theme: updated.theme,
+                    accentColor: updated.accentColor,
+                    fontSize: updated.fontSize,
+                    newMessagesAlert: updated.newMessagesAlert,
+                    mentionsOnlyAlert: updated.mentionsOnlyAlert,
+                    soundEffectsAlert: updated.soundEffectsAlert
+                  }),
+                  credentials: 'include'
+                })
+                .then(res => {
+                  if (!res.ok) throw new Error('Failed to update profile on server');
+                  return res.json();
+                })
+                .then(data => {
+                  if (data.success && data.user) {
+                    setCurrentUser(data.user);
+                    sessionStorage.setItem('collabhub_user', JSON.stringify(data.user));
+                  }
+                })
+                .catch(err => console.error('[Profile Update] Error syncing to database:', err));
+              }} 
+              onLogout={handleLogout} 
+            />
           )}
         </div>
       </div>
