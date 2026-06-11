@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { User } from '../../App';
+import { SOCKET_URL } from '../../App';
 
 interface SettingsViewProps {
   currentUser: User;
@@ -30,17 +31,44 @@ export function SettingsView({
   onUpdateUser, 
   onLogout 
 }: SettingsViewProps) {
+  // Helper to resolve full avatar URL paths
+  const getFullAvatarUrl = (avatarStr: string | null) => {
+    if (!avatarStr) return null;
+    if (avatarStr.startsWith('data:image/') || avatarStr.startsWith('http')) {
+      return avatarStr;
+    }
+    if (avatarStr.startsWith('/uploads/')) {
+      return `${SOCKET_URL}${avatarStr}`;
+    }
+    // Resolve seeded Google avatars (JM, NM, KW)
+    switch (avatarStr) {
+      case 'JM':
+        return 'https://lh3.googleusercontent.com/aida-public/AB6AXuBCPQQYKJpNA5jd1VjdBDcDwLhDNGA59CdxkjOyVhJvMpia9w59tOwSokbTb5SMUjo__jk2RrKpLF6shcM0R5MYEvARXJziz6-ByZTUKRm8snciuCODUq8Ytvez7uG5CRhrTHD1W-hHxId8xUK48HEx0LQ4ot-4z0WV07MGLCB4d1a3h_Jb33-GllgsNM1t2ACOV61IMzHOyLzkqNx1q1FEqa7alHPoPcCQv8DL7k5IlH97b6MYoyno3CBnSUeYJ4pSi-WLoneFGhAq';
+      case 'NM':
+        return 'https://lh3.googleusercontent.com/aida-public/AB6AXuA-SnAPBXeqztqdjPSSZE7o0DRAydecmHb8ZdThdek0HnLH5AvvxB33qhlNcNivOjBl9H27Rao0E4go6OGdcdo5UGS3ge1NhuRhR3xe7aKwknkJCculUQH5-zBW8PMz-zEfmCtoCY7jJ4aSOmvxVnraip1ehItkQ3RgJxQilGuIK7mRpNsws2EktJLN6iB1l5OOuBLGjLqY75tOjTiMTbfDHPOPDpNN4dc4Z6suPPuwWcdyObz_R_hp82dVJJujkBGJ_8MH2nKMJ46i';
+      case 'KW':
+        return 'https://lh3.googleusercontent.com/aida-public/AB6AXuDhGcX1X6J_eYc9wN2eoi0jQdf6JFbzbTJeSiQ78PkZg8tA5-aY-dpIDGRGs9OVs0_193zsWJsHTL55q7cJ1jQHrLj5FPcL8Pxeqyg23j9UuLxhE9otVEj5SPgJ6IODvHFpxyU02nlt9ywIWzAMg9hssZv3P3pMpSt6lEvxm4tvipwDIWk2WYj3gkuWJNkzayjcZq7CvKxtZOnaPS8yGVY30c23eR4EITJ1Hp2Fr27wxYkIs_MnBdsRW6yGTCJehKL8oNyJvpGsY78S';
+      default:
+        return null;
+    }
+  };
+
   // Profile Form States
   const [fullName, setFullName] = useState(currentUser.name);
-  const [username, setUsername] = useState(currentUser.username || 'arivera_dev');
-  const [bio, setBio] = useState(currentUser.bio || 'Senior Product Designer focused on creating seamless collaborative experiences at CollabHub.');
+  const [username, setUsername] = useState(currentUser.username || '');
+  const [bio, setBio] = useState(currentUser.bio || '');
   
   // Customization States
   const [theme, setTheme] = useState<ThemeMode>((currentUser.theme as ThemeMode) || 'light');
   const [accentColor, setAccentColor] = useState(currentUser.accentColor || '#004ad3');
   const [accentLabel, setAccentLabel] = useState('Default primary blue');
   const [fontSize, setFontSize] = useState<FontSize>((currentUser.fontSize as FontSize) || 'medium');
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(() => {
+    if (currentUser.avatar && (currentUser.avatar.startsWith('/uploads/') || currentUser.avatar.startsWith('http') || currentUser.avatar.startsWith('data:image/'))) {
+      return currentUser.avatar;
+    }
+    return null;
+  });
   
   // Database Preferences (Mapped exactly to user_preferences table schema)
   const [newMessages, setNewMessages] = useState(currentUser.newMessagesAlert ?? true);
@@ -62,6 +90,11 @@ export function SettingsView({
     setNewMessages(currentUser.newMessagesAlert ?? true);
     setMentionsOnly(currentUser.mentionsOnlyAlert ?? false);
     setSoundEffects(currentUser.soundEffectsAlert ?? true);
+    if (currentUser.avatar && (currentUser.avatar.startsWith('/uploads/') || currentUser.avatar.startsWith('http') || currentUser.avatar.startsWith('data:image/'))) {
+      setAvatarPreview(currentUser.avatar);
+    } else {
+      setAvatarPreview(null);
+    }
   }, [currentUser]);
 
   // Custom function to trigger premium in-app alerts
@@ -120,7 +153,7 @@ export function SettingsView({
     const updatedUser: User = {
       ...currentUser,
       name: fullName.trim() || currentUser.name,
-      avatar: fullName.trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || currentUser.avatar,
+      avatar: avatarPreview || fullName.trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || currentUser.avatar,
       username,
       bio,
       theme,
@@ -197,15 +230,15 @@ export function SettingsView({
                 {/* Avatar Image Uploader */}
                 <div className="flex flex-col items-center gap-md">
                   <div className="relative group">
-                    <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-surface-container-high dark:border-outline-variant shadow-inner">
-                      {avatarPreview ? (
-                        <img alt="Uploaded avatar preview" className="w-full h-full object-cover" src={avatarPreview} />
-                      ) : (
-                        <img
-                          alt="Current avatar"
-                          className="w-full h-full object-cover"
-                          src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFRNhTNIhlTn0VLhQCMOT7TIk_pQZCO8UphzEVJadkbiWwTxytYSA0lKuVmta1OWaWsFIJmd-UrPPybkoYsbXCDXazAkhwDpf6QyML0prK89PlRGI7YNXgiceNShQfpy_-s9dM1DTUhcMuOE6yw286pEetUOkebYXLL9qWpGY0tuZc-STYmH4vOieMlYsqskfExIRFpTLnIXF1j1Kdm7wRRwLKECvtOFTKYb65Mn0D0KUB0ktn0Rzzi8kBtIthG7uEvWCfhY0eWXOq"
+                    <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-surface-container-high dark:border-outline-variant shadow-inner flex items-center justify-center bg-primary text-white text-3xl font-bold select-none">
+                      {getFullAvatarUrl(avatarPreview) ? (
+                        <img 
+                          alt="Avatar preview" 
+                          className="w-full h-full object-cover" 
+                          src={getFullAvatarUrl(avatarPreview)!} 
                         />
+                      ) : (
+                        <span>{currentUser.avatar || 'CH'}</span>
                       )}
                     </div>
                     <button

@@ -1,5 +1,5 @@
 import type { Message } from '../../App';
-import { formatFileSize } from '../../App';
+import { formatFileSize, SOCKET_URL } from '../../App';
 
 interface MessageBubbleProps {
   message: Message;
@@ -11,7 +11,7 @@ interface MessageBubbleProps {
 
 const renderAttachment = (attachment: NonNullable<Message['attachment']>, isOwnMsg: boolean) => {
   const isImg = attachment.type.startsWith('image/');
-  const downloadUrl = attachment.url.startsWith('data:') ? attachment.url : `http://localhost:5000${attachment.url}`;
+  const downloadUrl = attachment.url.startsWith('data:') ? attachment.url : `${SOCKET_URL}${attachment.url}`;
   
   if (isImg) {
     return (

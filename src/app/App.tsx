@@ -963,7 +963,8 @@ export default function App() {
                     fontSize: updated.fontSize,
                     newMessagesAlert: updated.newMessagesAlert,
                     mentionsOnlyAlert: updated.mentionsOnlyAlert,
-                    soundEffectsAlert: updated.soundEffectsAlert
+                    soundEffectsAlert: updated.soundEffectsAlert,
+                    avatar: updated.avatar
                   }),
                   credentials: 'include'
                 })

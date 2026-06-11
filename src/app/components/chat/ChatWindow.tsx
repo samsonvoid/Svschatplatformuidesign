@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
 import type { Chat, User } from '../../App';
-import { formatFileSize } from '../../App';
+import { formatFileSize, SOCKET_URL } from '../../App';
 
 const EMOJI_CATEGORIES = {
   smileys: { icon: '😀', label: 'Smileys', emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '🥱', '😴', '😷', '🤔'] },
@@ -618,14 +618,14 @@ export function ChatWindow({
                         <p className="text-[10px] text-on-surface-variant opacity-60 uppercase">{formatFileSize(att.size)} • {isImg ? 'IMAGE' : 'FILE'}</p>
                         <div className="mt-xs flex gap-xs items-center">
                           <button 
-                            onClick={() => window.open(att.url.startsWith('data:') ? att.url : `http://localhost:5000${att.url}`, '_blank')}
+                            onClick={() => window.open(att.url.startsWith('data:') ? att.url : `${SOCKET_URL}${att.url}`, '_blank')}
                             className="flex items-center gap-xs bg-primary/10 hover:bg-primary text-primary hover:text-white px-md py-1 rounded-full font-label-sm text-[10px] font-bold transition-all active:scale-95 cursor-pointer shadow-sm border border-primary/20 w-fit border-none"
                           >
                             <span className="material-symbols-outlined text-[12px]">open_in_new</span>
                             Open
                           </button>
                           <a 
-                            href={att.url.startsWith('data:') ? att.url : `http://localhost:5000${att.url}`} 
+                            href={att.url.startsWith('data:') ? att.url : `${SOCKET_URL}${att.url}`} 
                             download={att.name}
                             className="flex items-center gap-xs bg-primary/10 hover:bg-primary text-primary hover:text-white px-md py-1 rounded-full font-label-sm text-[10px] font-bold transition-all active:scale-95 cursor-pointer shadow-sm border border-primary/20 w-fit no-underline"
                           >
