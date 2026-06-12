@@ -281,10 +281,33 @@ export function Sidebar({
           );
 
           return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-md">
+            <div 
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '16px',
+                zIndex: 9999
+              }}
+            >
               {/* Backdrop */}
               <div 
-                className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity cursor-pointer"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                  backdropFilter: 'blur(4px)',
+                  WebkitBackdropFilter: 'blur(4px)',
+                  cursor: 'pointer'
+                }}
                 onClick={() => {
                   setShowNewChatModal(false);
                   setModalTab('direct');
@@ -297,7 +320,23 @@ export function Sidebar({
               ></div>
 
               {/* Modal Container */}
-              <div className="relative z-10 bg-surface w-full max-w-md rounded-2xl shadow-xl flex flex-col max-h-[80%] overflow-hidden border border-outline-variant">
+              <div 
+                style={{
+                  position: 'relative',
+                  zIndex: 10,
+                  width: '100%',
+                  maxWidth: '448px',
+                  maxHeight: '80%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                  borderRadius: '16px',
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                  border: '1px solid #c3c5d9'
+                }}
+                className="bg-surface border-outline-variant"
+              >
                 <div className="px-lg py-md border-b border-outline-variant flex justify-between items-center bg-surface-container-low flex-shrink-0">
                   <h3 className="font-headline-sm text-headline-sm font-bold">Start a New Chat</h3>
                   <button 
