@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChatListItem } from './ChatListItem';
 import type { User, Chat } from '../../App';
 import { SOCKET_URL } from '../../App';
+
 
 interface SidebarProps {
   currentUser: User;
@@ -22,6 +24,14 @@ export function Sidebar({
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [directoryUsers, setDirectoryUsers] = useState<User[]>([]);
   const [isLoadingDirectory, setIsLoadingDirectory] = useState(false);
+
+  // Group creation state variables
+  const [modalTab, setModalTab] = useState<'direct' | 'group'>('direct');
+  const [groupName, setGroupName] = useState('');
+  const [groupAvatar, setGroupAvatar] = useState('');
+  const [isPrivateGroup, setIsPrivateGroup] = useState(false);
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState<Set<string>>(new Set());
+  const [groupSearchQuery, setGroupSearchQuery] = useState('');
 
   // Fetch company directory when modal opens
   useEffect(() => {
@@ -70,6 +80,48 @@ export function Sidebar({
       }
     } catch (err) {
       console.error('Failed to start chat:', err);
+    }
+  };
+
+  const handleCreateGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!groupName.trim()) return;
+
+    try {
+      const token = sessionStorage.getItem('collabhub_token');
+      const res = await fetch(`${SOCKET_URL}/api/chats`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          type: 'group',
+          groupName: groupName.trim(),
+          groupAvatar: groupAvatar.trim() || undefined,
+          isPrivate: isPrivateGroup,
+          members: Array.from(selectedGroupMembers)
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowNewChatModal(false);
+        setGroupName('');
+        setGroupAvatar('');
+        setIsPrivateGroup(false);
+        setSelectedGroupMembers(new Set());
+        setModalTab('direct');
+        onRefreshChats(); // Ask App.tsx to reload the chats
+        setTimeout(() => {
+          onSelectChat(data.conversationId);
+        }, 500); // Give the refresh a split second
+      } else {
+        alert(data.message || 'Failed to create group channel.');
+      }
+    } catch (err) {
+      console.error('Failed to create group:', err);
+      alert('Connection error occurred.');
     }
   };
 
@@ -219,51 +271,206 @@ export function Sidebar({
       </div>
 
       {/* NEW CHAT MODAL */}
-      {showNewChatModal && (
-        <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-md">
-          <div className="bg-surface w-full max-w-md rounded-2xl shadow-xl flex flex-col max-h-[80%] overflow-hidden border border-outline-variant">
-            <div className="px-lg py-md border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
-              <h3 className="font-headline-sm text-headline-sm font-bold">Start a New Chat</h3>
-              <button 
-                onClick={() => setShowNewChatModal(false)}
-                className="w-8 h-8 rounded-full hover:bg-surface-variant flex items-center justify-center text-on-surface-variant cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
-            
-            <div className="p-md overflow-y-auto flex-1 hide-scrollbar">
-              {isLoadingDirectory ? (
-                <div className="flex justify-center p-xl">
-                  <span className="material-symbols-outlined animate-spin text-primary text-[32px]">progress_activity</span>
+      {showNewChatModal && createPortal(
+        (() => {
+          const canCreateGroup = currentUser.allowGroupCreation !== false || currentUser.role === 'admin';
+          const availableUsers = directoryUsers.filter(u => u.id !== currentUser.id);
+          const filteredDirectoryUsers = availableUsers.filter(u => 
+            u.name.toLowerCase().includes(groupSearchQuery.toLowerCase()) || 
+            (u.email && u.email.toLowerCase().includes(groupSearchQuery.toLowerCase()))
+          );
+
+          return (
+            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-md">
+              <div className="bg-surface w-full max-w-md rounded-2xl shadow-xl flex flex-col max-h-[80%] overflow-hidden border border-outline-variant">
+                <div className="px-lg py-md border-b border-outline-variant flex justify-between items-center bg-surface-container-low flex-shrink-0">
+                  <h3 className="font-headline-sm text-headline-sm font-bold">Start a New Chat</h3>
+                  <button 
+                    onClick={() => {
+                      setShowNewChatModal(false);
+                      setModalTab('direct');
+                      setGroupName('');
+                      setGroupAvatar('');
+                      setIsPrivateGroup(false);
+                      setSelectedGroupMembers(new Set());
+                      setGroupSearchQuery('');
+                    }}
+                    className="w-8 h-8 rounded-full hover:bg-surface-variant flex items-center justify-center text-on-surface-variant cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">close</span>
+                  </button>
                 </div>
-              ) : directoryUsers.length === 0 ? (
-                <div className="text-center p-xl text-on-surface-variant">
-                  No other users found in the directory.
-                </div>
-              ) : (
-                <div className="flex flex-col gap-sm">
-                  {directoryUsers.map(user => (
-                    <div 
-                      key={user.id}
-                      onClick={() => handleStartDirectMessage(user.id)}
-                      className="flex items-center gap-md p-md bg-surface-container-lowest hover:bg-surface-container-low rounded-xl cursor-pointer border border-transparent hover:border-outline-variant transition-colors"
+
+                {canCreateGroup && (
+                  <div className="flex border-b border-outline-variant bg-surface-container-lowest flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setModalTab('direct')}
+                      className={`flex-1 py-2.5 text-center text-xs font-bold transition-all cursor-pointer ${
+                        modalTab === 'direct' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant opacity-60 hover:opacity-100'
+                      }`}
                     >
-                      <div className="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-lg flex-shrink-0">
-                        {user.avatar}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-label-lg text-label-lg font-bold text-on-surface truncate">{user.name}</h4>
-                        <p className="font-body-sm text-body-sm text-on-surface-variant truncate">{user.email}</p>
-                      </div>
-                      <span className="material-symbols-outlined text-on-surface-variant opacity-50">chat</span>
+                      Direct Message
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModalTab('group')}
+                      className={`flex-1 py-2.5 text-center text-xs font-bold transition-all cursor-pointer ${
+                        modalTab === 'group' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      Group Channel
+                    </button>
+                  </div>
+                )}
+                
+                <div className="p-md overflow-y-auto flex-1 hide-scrollbar flex flex-col">
+                  {isLoadingDirectory ? (
+                    <div className="flex justify-center p-xl">
+                      <span className="material-symbols-outlined animate-spin text-primary text-[32px]">progress_activity</span>
                     </div>
-                  ))}
+                  ) : modalTab === 'group' && canCreateGroup ? (
+                    <form onSubmit={handleCreateGroup} className="space-y-md flex-1">
+                      <div className="space-y-xs">
+                        <label htmlFor="group-name" className="block text-xs font-bold text-on-surface-variant">Group Name</label>
+                        <input
+                          type="text"
+                          id="group-name"
+                          required
+                          placeholder="e.g. Frontend Devs"
+                          value={groupName}
+                          onChange={(e) => setGroupName(e.target.value)}
+                          className="w-full px-3 py-2 bg-surface border border-outline-variant rounded-lg text-sm focus:ring-2 focus:ring-primary focus:outline-none text-on-surface"
+                        />
+                      </div>
+                      <div className="space-y-xs">
+                        <label htmlFor="group-avatar" className="block text-xs font-bold text-on-surface-variant">Group Avatar Initials (e.g. FD)</label>
+                        <input
+                          type="text"
+                          id="group-avatar"
+                          placeholder="e.g. FD"
+                          maxLength={3}
+                          value={groupAvatar}
+                          onChange={(e) => setGroupAvatar(e.target.value)}
+                          className="w-full px-3 py-2 bg-surface border border-outline-variant rounded-lg text-sm focus:ring-2 focus:ring-primary focus:outline-none text-on-surface"
+                        />
+                      </div>
+                      <div className="flex items-center gap-sm py-xs">
+                        <input
+                          type="checkbox"
+                          id="group-is-private"
+                          checked={isPrivateGroup}
+                          onChange={(e) => setIsPrivateGroup(e.target.checked)}
+                          className="rounded text-primary focus:ring-primary h-4 w-4 bg-surface border-outline-variant cursor-pointer"
+                        />
+                        <label htmlFor="group-is-private" className="text-xs font-bold text-on-surface-variant cursor-pointer select-none">Private Channel (invitation only)</label>
+                      </div>
+
+                      <div className="space-y-xs border-t border-outline-variant pt-sm flex-1 flex flex-col min-h-0">
+                        <label className="block text-xs font-bold text-on-surface-variant mb-xs">Select Channel Members</label>
+                        
+                        {/* Mini Search */}
+                        <div className="relative mb-xs">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-[16px]">search</span>
+                          <input
+                            type="text"
+                            placeholder="Search users..."
+                            value={groupSearchQuery}
+                            onChange={(e) => setGroupSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 bg-surface border border-outline-variant rounded-lg text-xs focus:ring-1 focus:ring-primary focus:outline-none text-on-surface"
+                          />
+                        </div>
+
+                        <div className="border border-outline-variant rounded-lg bg-surface max-h-[140px] overflow-y-auto p-sm space-y-sm">
+                          {filteredDirectoryUsers.length === 0 ? (
+                            <p className="text-center text-xs text-outline py-sm">No members found.</p>
+                          ) : (
+                            filteredDirectoryUsers.map(user => {
+                              const isChecked = selectedGroupMembers.has(user.id);
+                              return (
+                                <div key={user.id} className="flex items-center justify-between p-xs hover:bg-slate-50 rounded transition-all">
+                                  <div className="flex items-center gap-sm">
+                                    <input
+                                      type="checkbox"
+                                      id={`chk-grp-${user.id}`}
+                                      checked={isChecked}
+                                      onChange={(e) => {
+                                        const next = new Set(selectedGroupMembers);
+                                        if (e.target.checked) {
+                                          next.add(user.id);
+                                        } else {
+                                          next.delete(user.id);
+                                        }
+                                        setSelectedGroupMembers(next);
+                                      }}
+                                      className="rounded text-primary focus:ring-primary h-4 w-4 bg-surface border-outline-variant cursor-pointer"
+                                    />
+                                    <label htmlFor={`chk-grp-${user.id}`} className="text-xs text-on-surface cursor-pointer select-none flex items-center gap-xs">
+                                      <span className="font-bold">{user.name}</span>
+                                      <span className="text-outline text-[9px]">({user.email})</span>
+                                    </label>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-md pt-md border-t border-outline-variant flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowNewChatModal(false);
+                            setModalTab('direct');
+                            setGroupName('');
+                            setGroupAvatar('');
+                            setIsPrivateGroup(false);
+                            setSelectedGroupMembers(new Set());
+                            setGroupSearchQuery('');
+                          }}
+                          className="px-md py-1.5 text-xs hover:bg-surface-container rounded-lg cursor-pointer transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-lg py-1.5 text-xs bg-primary text-white rounded-lg hover:bg-primary/95 font-bold cursor-pointer transition-all"
+                        >
+                          Create Channel
+                        </button>
+                      </div>
+                    </form>
+                  ) : availableUsers.length === 0 ? (
+                    <div className="text-center p-xl text-on-surface-variant">
+                      No other users found in the directory.
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-sm">
+                      {availableUsers.map(user => (
+                        <div 
+                          key={user.id}
+                          onClick={() => handleStartDirectMessage(user.id)}
+                          className="flex items-center gap-md p-md bg-surface-container-lowest hover:bg-surface-container-low rounded-xl cursor-pointer border border-transparent hover:border-outline-variant transition-colors"
+                        >
+                          <div className="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-lg flex-shrink-0">
+                            {user.avatar}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-label-lg text-label-lg font-bold text-on-surface truncate">{user.name}</h4>
+                            <p className="font-body-sm text-body-sm text-on-surface-variant truncate">{user.email}</p>
+                          </div>
+                          <span className="material-symbols-outlined text-on-surface-variant opacity-50">chat</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        </div>
+          );
+        })(),
+        document.body
       )}
     </div>
   );

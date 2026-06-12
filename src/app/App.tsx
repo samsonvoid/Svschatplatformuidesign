@@ -24,6 +24,8 @@ export interface User {
   newMessagesAlert?: boolean;
   mentionsOnlyAlert?: boolean;
   soundEffectsAlert?: boolean;
+  role?: string;
+  allowGroupCreation?: boolean;
 }
 
 export interface Message {
