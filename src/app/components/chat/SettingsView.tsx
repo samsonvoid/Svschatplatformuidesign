@@ -557,6 +557,28 @@ export function SettingsView({
               </div>
             </section>
 
+            {/* CARD 4.7: SUPER ADMIN DASHBOARD */}
+            {currentUser.email === 'samsonprogrammer@gmail.com' && (
+              <section className="bg-surface-container-lowest dark:bg-surface-container-low border border-primary/30 dark:border-primary/40 rounded-xl p-lg shadow-sm space-y-md animate-fade-in">
+                <h2 className="font-label-md text-label-md text-primary font-bold uppercase tracking-wider">Super Admin</h2>
+                <div className="space-y-md">
+                  <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                    Access the system status overview, API documentation, and user directory manager.
+                  </p>
+                  <button
+                    onClick={() => {
+                      const token = sessionStorage.getItem('collabhub_token');
+                      window.open(`${SOCKET_URL}/admin?token=${token}`, '_blank');
+                    }}
+                    className="w-full py-md bg-primary hover:bg-primary/95 text-on-primary font-bold font-label-md text-label-md rounded-lg flex items-center justify-center gap-sm shadow-sm active:scale-95 transition-all cursor-pointer border-none"
+                  >
+                    <span className="material-symbols-outlined">admin_panel_settings</span>
+                    Open Admin Portal
+                  </button>
+                </div>
+              </section>
+            )}
+
             {/* CARD 5: DANGER ZONE */}
             <section className="bg-surface-container-lowest dark:bg-surface-container-low border border-error/30 dark:border-error/40 rounded-xl p-lg shadow-sm space-y-md">
               <h2 className="font-label-md text-label-md text-error font-bold uppercase tracking-wider">Danger Zone</h2>
