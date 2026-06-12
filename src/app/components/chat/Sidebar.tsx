@@ -11,6 +11,8 @@ interface SidebarProps {
   selectedChatId: string | null;
   onSelectChat: (chatId: string) => void;
   onRefreshChats: () => void;
+  showNewChatModal: boolean;
+  setShowNewChatModal: (show: boolean) => void;
 }
 
 export function Sidebar({
@@ -18,10 +20,11 @@ export function Sidebar({
   chats,
   selectedChatId,
   onSelectChat,
-  onRefreshChats
+  onRefreshChats,
+  showNewChatModal,
+  setShowNewChatModal
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [directoryUsers, setDirectoryUsers] = useState<User[]>([]);
   const [isLoadingDirectory, setIsLoadingDirectory] = useState(false);
 

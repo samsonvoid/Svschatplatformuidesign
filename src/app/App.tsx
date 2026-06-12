@@ -108,6 +108,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [authView, setAuthView] = useState<'landing' | 'login' | 'signup' | 'app'>(() => {
     const saved = sessionStorage.getItem('collabhub_auth_view');
     return (saved as any) || 'landing';
@@ -905,6 +906,8 @@ export default function App() {
                   selectedChatId={selectedChatId}
                   onSelectChat={setSelectedChatId}
                   onRefreshChats={fetchChats}
+                  showNewChatModal={showNewChatModal}
+                  setShowNewChatModal={setShowNewChatModal}
                 />
               </div>
 
@@ -1033,6 +1036,7 @@ export default function App() {
           onClick={() => {
             handleSetActiveTab('chats');
             setSelectedChatId(null);
+            setShowNewChatModal(true);
           }}
           className="fixed bottom-24 right-md bg-primary hover:bg-primary/95 text-on-primary w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all md:hidden z-[60] cursor-pointer"
         >
