@@ -1,4 +1,4 @@
-const CACHE_NAME = 'collabhub-cache-v3';
+const CACHE_NAME = 'collabhub-cache-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

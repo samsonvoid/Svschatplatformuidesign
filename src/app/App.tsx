@@ -818,6 +818,7 @@ export default function App() {
                 onClick={() => {
                   handleSetActiveTab('chats');
                   setSelectedChatId(null);
+                  setShowNewChatModal(true);
                 }}
                 className="w-full flex items-center justify-center gap-sm bg-primary hover:bg-primary/95 text-on-primary py-sm rounded-lg font-label-md text-label-md transition-all cursor-pointer"
               >

@@ -36,6 +36,12 @@ export function Sidebar({
   const [selectedGroupMembers, setSelectedGroupMembers] = useState<Set<string>>(new Set());
   const [groupSearchQuery, setGroupSearchQuery] = useState('');
 
+  // DM filtering/sorting/searching state variables
+  const [dmSearchQuery, setDmSearchQuery] = useState('');
+  const [dmSortOrder, setDmSortOrder] = useState<'name-asc' | 'name-desc' | 'status'>('status');
+  const [dmFilterRole, setDmFilterRole] = useState<'all' | 'admin' | 'user'>('all');
+  const [dmFilterStatus, setDmFilterStatus] = useState<'all' | 'online' | 'offline' | 'away'>('all');
+
   // Fetch company directory when modal opens
   useEffect(() => {
     if (showNewChatModal) {
@@ -278,6 +284,39 @@ export function Sidebar({
         (() => {
           const canCreateGroup = currentUser.role === 'admin';
           const availableUsers = directoryUsers.filter(u => u.id !== currentUser.id);
+
+          // Apply search, filters, and sort to availableUsers for the DM tab
+          const filteredDMs = availableUsers
+            .filter(u => {
+              // Search Query
+              const query = dmSearchQuery.toLowerCase();
+              const matchesQuery = u.name.toLowerCase().includes(query) || (u.email && u.email.toLowerCase().includes(query));
+              
+              // Role Filter
+              const matchesRole = dmFilterRole === 'all' || u.role === dmFilterRole;
+              
+              // Status Filter
+              const matchesStatus = dmFilterStatus === 'all' || u.status === dmFilterStatus;
+              
+              return matchesQuery && matchesRole && matchesStatus;
+            })
+            .sort((a, b) => {
+              if (dmSortOrder === 'name-asc') {
+                return a.name.localeCompare(b.name);
+              }
+              if (dmSortOrder === 'name-desc') {
+                return b.name.localeCompare(a.name);
+              }
+              if (dmSortOrder === 'status') {
+                // Online first, then away, then offline
+                const statusWeight = { online: 3, away: 2, offline: 1 };
+                const weightA = statusWeight[a.status] || 1;
+                const weightB = statusWeight[b.status] || 1;
+                if (weightA !== weightB) return weightB - weightA;
+                return a.name.localeCompare(b.name);
+              }
+              return 0;
+            });
           const filteredDirectoryUsers = availableUsers.filter(u => 
             u.name.toLowerCase().includes(groupSearchQuery.toLowerCase()) || 
             (u.email && u.email.toLowerCase().includes(groupSearchQuery.toLowerCase()))
@@ -503,23 +542,78 @@ export function Sidebar({
                       No other users found in the directory.
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-sm">
-                      {availableUsers.map(user => (
-                        <div 
-                          key={user.id}
-                          onClick={() => handleStartDirectMessage(user.id)}
-                          className="flex items-center gap-md p-md bg-surface-container-lowest hover:bg-surface-container-low rounded-xl cursor-pointer border border-transparent hover:border-outline-variant transition-colors"
-                        >
-                          <div className="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-lg flex-shrink-0">
-                            {user.avatar}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-label-lg text-label-lg font-bold text-on-surface truncate">{user.name}</h4>
-                            <p className="font-body-sm text-body-sm text-on-surface-variant truncate">{user.email}</p>
-                          </div>
-                          <span className="material-symbols-outlined text-on-surface-variant opacity-50">chat</span>
+                    <div className="flex flex-col gap-sm flex-1 min-h-0">
+                      {/* Search, Filter & Sort Toolbar */}
+                      <div className="space-y-xs pb-sm border-b border-outline-variant/30 flex-shrink-0">
+                        {/* Search Input */}
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-[16px]">search</span>
+                          <input
+                            type="text"
+                            placeholder="Search directory by name/email..."
+                            value={dmSearchQuery}
+                            onChange={(e) => setDmSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 bg-surface border border-outline-variant rounded-lg text-xs focus:ring-1 focus:ring-primary focus:outline-none text-on-surface"
+                          />
                         </div>
-                      ))}
+                        {/* Dropdowns */}
+                        <div className="flex gap-xs mt-xs">
+                          <select
+                            value={dmFilterRole}
+                            onChange={(e: any) => setDmFilterRole(e.target.value)}
+                            className="flex-1 px-1.5 py-1 bg-surface border border-outline-variant rounded-lg text-[10px] text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary"
+                          >
+                            <option value="all">All Roles</option>
+                            <option value="admin">Admins Only</option>
+                            <option value="user">Users Only</option>
+                          </select>
+                          <select
+                            value={dmFilterStatus}
+                            onChange={(e: any) => setDmFilterStatus(e.target.value)}
+                            className="flex-1 px-1.5 py-1 bg-surface border border-outline-variant rounded-lg text-[10px] text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary"
+                          >
+                            <option value="all">All Statuses</option>
+                            <option value="online">Online</option>
+                            <option value="away">Away</option>
+                            <option value="offline">Offline</option>
+                          </select>
+                          <select
+                            value={dmSortOrder}
+                            onChange={(e: any) => setDmSortOrder(e.target.value)}
+                            className="flex-1 px-1.5 py-1 bg-surface border border-outline-variant rounded-lg text-[10px] text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary"
+                          >
+                            <option value="status">Status First</option>
+                            <option value="name-asc">Name A-Z</option>
+                            <option value="name-desc">Name Z-A</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Scrollable List */}
+                      <div className="flex-1 overflow-y-auto space-y-sm max-h-[160px] pr-xs mt-sm hide-scrollbar">
+                        {filteredDMs.length === 0 ? (
+                          <div className="text-center py-lg text-xs text-on-surface-variant/60">
+                            No matching contacts found.
+                          </div>
+                        ) : (
+                          filteredDMs.map(user => (
+                            <div 
+                              key={user.id}
+                              onClick={() => handleStartDirectMessage(user.id)}
+                              className="flex items-center gap-md p-md bg-surface-container-lowest hover:bg-surface-container-low rounded-xl cursor-pointer border border-transparent hover:border-outline-variant transition-colors"
+                            >
+                              <div className="w-12 h-12 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-lg flex-shrink-0">
+                                {user.avatar}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-label-lg text-label-lg font-bold text-on-surface truncate">{user.name}</h4>
+                                <p className="font-body-sm text-body-sm text-on-surface-variant truncate">{user.email}</p>
+                              </div>
+                              <span className="material-symbols-outlined text-on-surface-variant opacity-50">chat</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
