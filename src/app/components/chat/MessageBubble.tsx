@@ -97,6 +97,26 @@ const renderAttachment = (attachment: NonNullable<Message['attachment']>, isOwnM
   );
 };
 
+const getAvatarUrl = (avatar: string | null | undefined) => {
+  if (!avatar) return null;
+  if (avatar.startsWith('data:image/') || avatar.startsWith('http')) {
+    return avatar;
+  }
+  if (avatar.startsWith('/uploads/')) {
+    return `${SOCKET_URL}${avatar}`;
+  }
+  switch (avatar) {
+    case 'JM':
+      return 'https://lh3.googleusercontent.com/aida-public/AB6AXuBCPQQYKJpNA5jd1VjdBDcDwLhDNGA59CdxkjOyVhJvMpia9w59tOwSokbTb5SMUjo__jk2RrKpLF6shcM0R5MYEvARXJziz6-ByZTUKRm8snciuCODUq8Ytvez7uG5CRhrTHD1W-hHxId8xUK48HEx0LQ4ot-4z0WV07MGLCB4d1a3h_Jb33-GllgsNM1t2ACOV61IMzHOyLzkqNx1q1FEqa7alHPoPcCQv8DL7k5IlH97b6MYoyno3CBnSUeYJ4pSi-WLoneFGhAq';
+    case 'NM':
+      return 'https://lh3.googleusercontent.com/aida-public/AB6AXuA-SnAPBXeqztqdjPSSZE7o0DRAydecmHb8ZdThdek0HnLH5AvvxB33qhlNcNivOjBl9H27Rao0E4go6OGdcdo5UGS3ge1NhuRhR3xe7aKwknkJCculUQH5-zBW8PMz-zEfmCtoCY7jJ4aSOmvxVnraip1ehItkQ3RgJxQilGuIK7mRpNsws2EktJLN6iB1l5OOuBLGjLqY75tOjTiMTbfDHPOPDpNN4dc4Z6suPPuwWcdyObz_R_hp82dVJJujkBGJ_8MH2nKMJ46i';
+    case 'KW':
+      return 'https://lh3.googleusercontent.com/aida-public/AB6AXuDhGcX1X6J_eYc9wN2eoi0jQdf6JFbzbTJeSiQ78PkZg8tA5-aY-dpIDGRGs9OVs0_193zsWJsHTL55q7cJ1jQHrLj5FPcL8Pxeqyg23j9UuLxhE9otVEj5SPgJ6IODvHFpxyU02nlt9ywIWzAMg9hssZv3P3pMpSt6lEvxm4tvipwDIWk2WYj3gkuWJNkzayjcZq7CvKxtZOnaPS8yGVY30c23eR4EITJ1Hp2Fr27wxYkIs_MnBdsRW6yGTCJehKL8oNyJvpGsY78S';
+    default:
+      return null;
+  }
+};
+
 export function MessageBubble({
   message,
   isOwn,
@@ -196,12 +216,18 @@ export function MessageBubble({
   }
 
   // Recipient Bubble (Jamali, Neema, Fatuma, etc.)
+  const recipientAvatarUrl = getAvatarUrl(message.senderAvatar);
+
   return (
     <div className="flex flex-col gap-xs max-w-[85%] items-start self-start">
       {/* Participant Header Info */}
       <div className="flex items-center gap-sm mb-1 px-1">
-        <div className={`w-6 h-6 rounded-full ${getAvatarBg(senderName)} flex items-center justify-center overflow-hidden`}>
-          <span className="font-label-sm text-[10px] font-bold">{getSenderInitials(senderName)}</span>
+        <div className={`w-6 h-6 rounded-full ${recipientAvatarUrl ? '' : getAvatarBg(senderName)} flex items-center justify-center overflow-hidden`}>
+          {recipientAvatarUrl ? (
+            <img className="w-full h-full object-cover" src={recipientAvatarUrl} alt={senderName} />
+          ) : (
+            <span className="font-label-sm text-[10px] font-bold">{getSenderInitials(senderName)}</span>
+          )}
         </div>
         <span className="font-label-md text-on-surface-variant font-semibold">{senderName}</span>
         <span className="font-label-sm text-outline">{formatTime(message.timestamp)}</span>

@@ -37,7 +37,14 @@ export function DashboardView({
   );
 
   // Helper to resolve high-res premium avatars
-  const getAvatarUrl = (avatar: string) => {
+  const getAvatarUrl = (avatar: string | null | undefined) => {
+    if (!avatar) return null;
+    if (avatar.startsWith('data:image/') || avatar.startsWith('http')) {
+      return avatar;
+    }
+    if (avatar.startsWith('/uploads/')) {
+      return `${SOCKET_URL}${avatar}`;
+    }
     switch (avatar) {
       case 'JM':
         return 'https://lh3.googleusercontent.com/aida-public/AB6AXuBCPQQYKJpNA5jd1VjdBDcDwLhDNGA59CdxkjOyVhJvMpia9w59tOwSokbTb5SMUjo__jk2RrKpLF6shcM0R5MYEvARXJziz6-ByZTUKRm8snciuCODUq8Ytvez7uG5CRhrTHD1W-hHxId8xUK48HEx0LQ4ot-4z0WV07MGLCB4d1a3h_Jb33-GllgsNM1t2ACOV61IMzHOyLzkqNx1q1FEqa7alHPoPcCQv8DL7k5IlH97b6MYoyno3CBnSUeYJ4pSi-WLoneFGhAq';

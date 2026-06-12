@@ -96,7 +96,14 @@ export function Sidebar({
     });
   };
 
-  const getAvatarUrl = (avatar: string) => {
+  const getAvatarUrl = (avatar: string | null | undefined) => {
+    if (!avatar) return null;
+    if (avatar.startsWith('data:image/') || avatar.startsWith('http')) {
+      return avatar;
+    }
+    if (avatar.startsWith('/uploads/')) {
+      return `${SOCKET_URL}${avatar}`;
+    }
     switch (avatar) {
       case 'JM':
         return 'https://lh3.googleusercontent.com/aida-public/AB6AXuBCPQQYKJpNA5jd1VjdBDcDwLhDNGA59CdxkjOyVhJvMpia9w59tOwSokbTb5SMUjo__jk2RrKpLF6shcM0R5MYEvARXJziz6-ByZTUKRm8snciuCODUq8Ytvez7uG5CRhrTHD1W-hHxId8xUK48HEx0LQ4ot-4z0WV07MGLCB4d1a3h_Jb33-GllgsNM1t2ACOV61IMzHOyLzkqNx1q1FEqa7alHPoPcCQv8DL7k5IlH97b6MYoyno3CBnSUeYJ4pSi-WLoneFGhAq';
@@ -145,11 +152,18 @@ export function Sidebar({
         <div className="flex gap-md overflow-x-auto hide-scrollbar py-sm">
           {/* Current User status story */}
           <div className="flex flex-col items-center gap-xs flex-shrink-0">
-            <div className="w-14 h-14 rounded-full border-2 border-primary p-0.5">
-              <div className="w-full h-full rounded-full bg-surface-container-high flex items-center justify-center relative font-bold text-sm text-primary">
-                {currentUser.avatar}
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-              </div>
+            <div className="w-14 h-14 rounded-full border-2 border-primary p-0.5 overflow-hidden">
+              {getAvatarUrl(currentUser.avatar) ? (
+                <div className="w-full h-full rounded-full overflow-hidden relative">
+                   <img className="w-full h-full object-cover" src={getAvatarUrl(currentUser.avatar)!} alt={currentUser.name} />
+                   <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                </div>
+              ) : (
+                <div className="w-full h-full rounded-full bg-surface-container-high flex items-center justify-center relative font-bold text-sm text-primary">
+                  {currentUser.avatar}
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                </div>
+              )}
             </div>
             <span className="font-label-sm text-label-sm text-on-surface-variant">Your status</span>
           </div>

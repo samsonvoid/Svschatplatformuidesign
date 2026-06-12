@@ -30,6 +30,7 @@ export interface Message {
   id: string;
   senderId: string;
   senderName?: string;
+  senderAvatar?: string;
   content: string;
   timestamp: Date;
   status: 'sent' | 'delivered' | 'read' | 'sending';
@@ -64,6 +65,27 @@ export const formatFileSize = (bytes: number) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
+export const getFullAvatarUrl = (avatarStr: string | null | undefined) => {
+  if (!avatarStr) return null;
+  if (avatarStr.startsWith('data:image/') || avatarStr.startsWith('http')) {
+    return avatarStr;
+  }
+  if (avatarStr.startsWith('/uploads/')) {
+    return `${SOCKET_URL}${avatarStr}`;
+  }
+  // Resolve seeded Google avatars (JM, NM, KW)
+  switch (avatarStr) {
+    case 'JM':
+      return 'https://lh3.googleusercontent.com/aida-public/AB6AXuBCPQQYKJpNA5jd1VjdBDcDwLhDNGA59CdxkjOyVhJvMpia9w59tOwSokbTb5SMUjo__jk2RrKpLF6shcM0R5MYEvARXJziz6-ByZTUKRm8snciuCODUq8Ytvez7uG5CRhrTHD1W-hHxId8xUK48HEx0LQ4ot-4z0WV07MGLCB4d1a3h_Jb33-GllgsNM1t2ACOV61IMzHOyLzkqNx1q1FEqa7alHPoPcCQv8DL7k5IlH97b6MYoyno3CBnSUeYJ4pSi-WLoneFGhAq';
+    case 'NM':
+      return 'https://lh3.googleusercontent.com/aida-public/AB6AXuA-SnAPBXeqztqdjPSSZE7o0DRAydecmHb8ZdThdek0HnLH5AvvxB33qhlNcNivOjBl9H27Rao0E4go6OGdcdo5UGS3ge1NhuRhR3xe7aKwknkJCculUQH5-zBW8PMz-zEfmCtoCY7jJ4aSOmvxVnraip1ehItkQ3RgJxQilGuIK7mRpNsws2EktJLN6iB1l5OOuBLGjLqY75tOjTiMTbfDHPOPDpNN4dc4Z6suPPuwWcdyObz_R_hp82dVJJujkBGJ_8MH2nKMJ46i';
+    case 'KW':
+      return 'https://lh3.googleusercontent.com/aida-public/AB6AXuDhGcX1X6J_eYc9wN2eoi0jQdf6JFbzbTJeSiQ78PkZg8tA5-aY-dpIDGRGs9OVs0_193zsWJsHTL55q7cJ1jQHrLj5FPcL8Pxeqyg23j9UuLxhE9otVEj5SPgJ6IODvHFpxyU02nlt9ywIWzAMg9hssZv3P3pMpSt6lEvxm4tvipwDIWk2WYj3gkuWJNkzayjcZq7CvKxtZOnaPS8yGVY30c23eR4EITJ1Hp2Fr27wxYkIs_MnBdsRW6yGTCJehKL8oNyJvpGsY78S';
+    default:
+      return null;
+  }
 };
 
 export default function App() {
@@ -540,6 +562,7 @@ export default function App() {
             id: message.id,
             senderId: message.senderId,
             senderName: message.senderName,
+            senderAvatar: message.senderAvatar,
             content: message.content,
             timestamp: new Date(message.timestamp),
             status: message.status,
@@ -722,9 +745,17 @@ export default function App() {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden border border-outline-variant flex-shrink-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary flex items-center justify-center"
             >
-              <div className="w-full h-full bg-primary text-on-primary font-bold text-xs flex items-center justify-center select-none uppercase">
-                {currentUser.avatar || 'CH'}
-              </div>
+              {getFullAvatarUrl(currentUser.avatar) ? (
+                <img 
+                  alt="My avatar" 
+                  className="w-full h-full object-cover" 
+                  src={getFullAvatarUrl(currentUser.avatar)!} 
+                />
+              ) : (
+                <div className="w-full h-full bg-primary text-on-primary font-bold text-xs flex items-center justify-center select-none uppercase">
+                  {currentUser.avatar || 'CH'}
+                </div>
+              )}
             </button>
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-outline-variant rounded-lg shadow-lg py-1 z-50 animate-fade-in">
@@ -764,8 +795,16 @@ export default function App() {
           <nav className="w-[280px] h-full hidden md:flex flex-col border-r border-outline-variant bg-surface py-lg flex-shrink-0 animate-fade-in">
             <div className="px-md mb-lg">
               <div className="flex items-center gap-md px-md mb-md">
-                <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold">
-                  {currentUser.avatar}
+                <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold overflow-hidden">
+                  {getFullAvatarUrl(currentUser.avatar) ? (
+                    <img 
+                      alt="My avatar" 
+                      className="w-full h-full object-cover" 
+                      src={getFullAvatarUrl(currentUser.avatar)!} 
+                    />
+                  ) : (
+                    currentUser.avatar
+                  )}
                 </div>
                 <div>
                   <p className="font-headline-sm text-headline-sm font-bold text-primary">{currentUser.name}</p>
