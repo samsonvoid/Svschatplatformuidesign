@@ -281,8 +281,23 @@ export function Sidebar({
           );
 
           return (
-            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-md">
-              <div className="bg-surface w-full max-w-md rounded-2xl shadow-xl flex flex-col max-h-[80%] overflow-hidden border border-outline-variant">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-md">
+              {/* Backdrop */}
+              <div 
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity cursor-pointer"
+                onClick={() => {
+                  setShowNewChatModal(false);
+                  setModalTab('direct');
+                  setGroupName('');
+                  setGroupAvatar('');
+                  setIsPrivateGroup(false);
+                  setSelectedGroupMembers(new Set());
+                  setGroupSearchQuery('');
+                }}
+              ></div>
+
+              {/* Modal Container */}
+              <div className="relative z-10 bg-surface w-full max-w-md rounded-2xl shadow-xl flex flex-col max-h-[80%] overflow-hidden border border-outline-variant">
                 <div className="px-lg py-md border-b border-outline-variant flex justify-between items-center bg-surface-container-low flex-shrink-0">
                   <h3 className="font-headline-sm text-headline-sm font-bold">Start a New Chat</h3>
                   <button 
