@@ -273,7 +273,7 @@ export function Sidebar({
       {/* NEW CHAT MODAL */}
       {showNewChatModal && createPortal(
         (() => {
-          const canCreateGroup = currentUser.allowGroupCreation !== false || currentUser.role === 'admin';
+          const canCreateGroup = currentUser.role === 'admin';
           const availableUsers = directoryUsers.filter(u => u.id !== currentUser.id);
           const filteredDirectoryUsers = availableUsers.filter(u => 
             u.name.toLowerCase().includes(groupSearchQuery.toLowerCase()) || 
