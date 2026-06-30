@@ -1,4 +1,4 @@
-const CACHE_NAME = 'collabhub-cache-v5';
+const CACHE_NAME = 'collabhub-cache-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -40,6 +40,23 @@ self.addEventListener('fetch', (e) => {
     url.pathname.startsWith('/api') || 
     url.pathname.startsWith('/socket.io')
   ) {
+    return;
+  }
+
+  // Network-first strategy for the root HTML and manifest files to ensure they are always fresh!
+  if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/manifest.json') {
+    e.respondWith(
+      fetch(e.request)
+        .then((networkResponse) => {
+          return caches.open(CACHE_NAME).then((cache) => {
+            cache.put(e.request, networkResponse.clone());
+            return networkResponse;
+          });
+        })
+        .catch(() => {
+          return caches.match(e.request);
+        })
+    );
     return;
   }
 

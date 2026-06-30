@@ -2,6 +2,15 @@
 <html lang="en" class="light">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Force page reload on chunk load failures due to stale cache mismatches
+      window.addEventListener('error', function(e) {
+        if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+          console.warn("Asset load failed, forcing location reload to clear service worker cache...", e.target.src || e.target.href);
+          window.location.reload(true);
+        }
+      }, true);
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>CollabHub - Chats</title>
     <link rel="manifest" href="/manifest.json" />
