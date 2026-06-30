@@ -141,6 +141,19 @@ export default function App() {
 
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Track online/offline network connectivity state
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // PWA Service Worker Registration & Update triggers
   useEffect(() => {
@@ -1041,6 +1054,12 @@ export default function App() {
             </button>
           </div>
         )}
+        {!isOnline && (
+          <div className="bg-amber-500 text-white px-md py-sm flex items-center justify-center gap-sm text-xs font-bold animate-fade-in shadow-inner z-[90] relative flex-shrink-0">
+            <span className="material-symbols-outlined text-[16px] animate-pulse">wifi_off</span>
+            <span>You are currently offline. Showing cached content in read-only mode.</span>
+          </div>
+        )}
         <LandingPage 
           onLogin={() => handleSetAuthView('login')} 
           onSignUp={() => handleSetAuthView('signup')} 
@@ -1064,6 +1083,12 @@ export default function App() {
             >
               Update Now
             </button>
+          </div>
+        )}
+        {!isOnline && (
+          <div className="bg-amber-500 text-white px-md py-sm flex items-center justify-center gap-sm text-xs font-bold animate-fade-in shadow-inner z-[90] relative flex-shrink-0">
+            <span className="material-symbols-outlined text-[16px] animate-pulse">wifi_off</span>
+            <span>You are currently offline. Showing cached content in read-only mode.</span>
           </div>
         )}
         <SignUpPage 
@@ -1092,6 +1117,12 @@ export default function App() {
             </button>
           </div>
         )}
+        {!isOnline && (
+          <div className="bg-amber-500 text-white px-md py-sm flex items-center justify-center gap-sm text-xs font-bold animate-fade-in shadow-inner z-[90] relative flex-shrink-0">
+            <span className="material-symbols-outlined text-[16px] animate-pulse">wifi_off</span>
+            <span>You are currently offline. Showing cached content in read-only mode.</span>
+          </div>
+        )}
         <LoginPage 
           onSignUp={() => handleSetAuthView('signup')} 
           onSubmit={handleAuthSuccess} 
@@ -1115,6 +1146,12 @@ export default function App() {
           >
             Update Now
           </button>
+        </div>
+      )}
+      {!isOnline && (
+        <div className="bg-amber-500 text-white px-md py-sm flex items-center justify-center gap-sm text-xs font-bold animate-fade-in shadow-inner z-[90] relative flex-shrink-0">
+          <span className="material-symbols-outlined text-[16px] animate-pulse">wifi_off</span>
+          <span>You are currently offline. Showing cached messages in read-only mode.</span>
         </div>
       )}
       {/* Dynamic In-App Neon Notification Banner Overlay */}
