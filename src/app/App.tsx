@@ -143,6 +143,56 @@ export default function App() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  // 1.25. Apply theme, accent color, and font scaling settings to document root dynamically
+  useEffect(() => {
+    const root = document.documentElement;
+    
+    // A. Apply Theme Mode
+    const theme = currentUser.theme || 'light';
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else if (theme === 'light') {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    } else if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleSystemTheme = (e: MediaQueryListEvent | MediaQueryList) => {
+        if (e.matches) {
+          root.classList.add('dark');
+          root.classList.remove('light');
+        } else {
+          root.classList.add('light');
+          root.classList.remove('dark');
+        }
+      };
+      handleSystemTheme(mediaQuery);
+      mediaQuery.addEventListener('change', handleSystemTheme);
+      return () => mediaQuery.removeEventListener('change', handleSystemTheme);
+    }
+
+    // B. Apply Brand Accent Color
+    const accent = currentUser.accentColor || '#004ad3';
+    root.style.setProperty('--primary', accent);
+    root.style.setProperty('--ring', accent);
+
+    // C. Apply Font Scaling Size
+    const size = currentUser.fontSize || 'medium';
+    const fontPx = size === 'small' ? '14px' : size === 'large' ? '18px' : '16px';
+    root.style.setProperty('--font-size', fontPx);
+  }, [currentUser.theme, currentUser.accentColor, currentUser.fontSize]);
+
+  // 1.3. Clear all active OS notification tray overlays on boot
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(registration => {
+        registration.getNotifications().then(notifications => {
+          notifications.forEach(notification => notification.close());
+        });
+      }).catch(err => console.log('SW Badging error on startup:', err));
+    }
+  }, []);
+
   // Track online/offline network connectivity state
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -840,6 +890,18 @@ export default function App() {
       .then(data => {
         if (data.success) {
           setNotifications(prev => (prev || []).map(n => n.chat_id === selectedChatId ? { ...n, is_read: true } : n));
+        }
+        // Clear active OS notifications for this room
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(registration => {
+            registration.getNotifications().then(notifications => {
+              notifications.forEach(notification => {
+                if (notification.data && notification.data.chatId === selectedChatId) {
+                  notification.close();
+                }
+              });
+            });
+          });
         }
       })
       .catch(err => console.error('[Room Notifications Sync] Failed:', err));

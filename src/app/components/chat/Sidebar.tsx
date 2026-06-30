@@ -138,9 +138,13 @@ export function Sidebar({
     }
   };
 
+  const [filterUnread, setFilterUnread] = useState(false);
+
   const filteredChats = chats.filter(chat => {
     const name = chat.type === 'group' ? chat.group!.name : chat.user!.name;
-    return name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesUnread = !filterUnread || (chat.unreadCount && chat.unreadCount > 0);
+    return matchesSearch && matchesUnread;
   });
 
   const getTimeAgo = (date: Date) => {
@@ -187,11 +191,11 @@ export function Sidebar({
     .filter((u): u is User => !!u);
 
   return (
-    <div className="w-full md:w-80 bg-white border-r border-slate-200 flex flex-col h-full overflow-hidden">
+    <div className="w-full md:w-80 bg-white dark:bg-card border-r border-slate-200 dark:border-border flex flex-col h-full overflow-hidden">
       {/* Header and Quick Stories */}
-      <div className="px-md pt-lg pb-md border-b border-slate-200">
+      <div className="px-md pt-lg pb-md border-b border-slate-200 dark:border-border">
         <div className="flex justify-between items-end mb-md">
-          <h2 className="font-headline-md text-headline-md text-on-surface">Messages</h2>
+          <h2 className="font-headline-md text-headline-md text-on-surface dark:text-white">Messages</h2>
           <button 
             onClick={() => setShowNewChatModal(true)}
             className="bg-primary hover:bg-primary/95 text-on-primary px-md py-sm rounded-lg flex items-center gap-xs shadow-sm active:scale-95 transition-transform cursor-pointer"
@@ -202,15 +206,28 @@ export function Sidebar({
         </div>
 
         {/* Quick Search */}
-        <div className="relative mb-md">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
-          <input
-            type="text"
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
+        <div className="relative mb-md flex gap-xs items-center">
+          <div className="relative flex-1">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+            <input
+              type="text"
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-border/30 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:text-white"
+            />
+          </div>
+          <button
+            onClick={() => setFilterUnread(!filterUnread)}
+            className={`w-9 h-9 rounded-lg border flex items-center justify-center flex-shrink-0 cursor-pointer transition-all active:scale-95 ${
+              filterUnread
+                ? 'bg-primary border-primary text-white shadow-sm'
+                : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-700 dark:bg-slate-900 dark:border-border/30 dark:text-slate-400'
+            }`}
+            title={filterUnread ? "Show all messages" : "Show unread messages only"}
+          >
+            <span className="material-symbols-outlined text-[20px]">{filterUnread ? 'mark_chat_unread' : 'chat'}</span>
+          </button>
         </div>
 
         {/* Story Style active status */}
@@ -263,7 +280,7 @@ export function Sidebar({
       </div>
 
       {/* Chat list */}
-      <div className="flex-1 overflow-y-auto p-md space-y-sm bg-slate-50/30 hide-scrollbar">
+      <div className="flex-1 overflow-y-auto p-md space-y-sm bg-slate-50/30 dark:bg-slate-900/10 hide-scrollbar">
         {filteredChats.length === 0 ? (
           <div className="p-4 text-center text-slate-500 text-sm">
             No conversations found

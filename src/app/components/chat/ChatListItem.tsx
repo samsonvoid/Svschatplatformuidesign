@@ -59,7 +59,7 @@ export function ChatListItem({
       className={`flex items-center p-md gap-md tap-highlight-transparent cursor-pointer transition-all duration-200 rounded-xl relative ${
         isSelected
           ? 'bg-surface-container-low border-l-4 border-primary shadow-sm active:bg-surface-container-high'
-          : 'bg-white border border-outline-variant/30 active:bg-surface-container hover:bg-slate-50/50'
+          : 'bg-white dark:bg-card border border-outline-variant/30 dark:border-border/30 active:bg-slate-50 dark:active:bg-muted hover:bg-slate-50/50 dark:hover:bg-muted/40 text-on-surface dark:text-white'
       }`}
     >
       {/* Avatar / Group Symbol */}
