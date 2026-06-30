@@ -54,7 +54,7 @@ export function ChatWindow({
   };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [chat?.messages]);
 
   // Listen to typing status from socket
@@ -107,6 +107,53 @@ export function ChatWindow({
     }
   };
 
+  const compressImage = (file: File, callback: (dataUrl: string, size: number) => void) => {
+    if (!file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = () => callback(reader.result as string, file.size);
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const MAX_SIZE = 1024; // Resize high-res images to a max width/height of 1024px
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // Compress as JPEG at 70% quality
+          const stringLength = dataUrl.length - 'data:image/jpeg;base64,'.length;
+          const sizeInBytes = Math.ceil(stringLength * 0.75);
+          callback(dataUrl, sizeInBytes);
+        } else {
+          callback(e.target?.result as string, file.size);
+        }
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -118,16 +165,14 @@ export function ChatWindow({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
+    compressImage(file, (data, size) => {
       setSelectedFile({
         name: file.name,
-        type: file.type,
-        size: file.size,
-        data: reader.result as string
+        type: file.type.startsWith('image/') ? 'image/jpeg' : file.type,
+        size: size,
+        data: data
       });
-    };
-    reader.readAsDataURL(file);
+    });
     e.target.value = '';
   };
 
@@ -147,16 +192,14 @@ export function ChatWindow({
             alert("The pasted image is too large. Attachments are limited to a maximum of 25 MB.");
             return;
           }
-          const reader = new FileReader();
-          reader.onload = () => {
+          compressImage(file, (data, size) => {
             setSelectedFile({
-              name: `pasted_image_${Date.now()}.png`,
-              type: file.type || 'image/png',
-              size: file.size,
-              data: reader.result as string
+              name: `pasted_image_${Date.now()}.jpg`,
+              type: 'image/jpeg',
+              size: size,
+              data: data
             });
-          };
-          reader.readAsDataURL(file);
+          });
           inputRef.current?.focus();
           return;
         }
@@ -177,16 +220,14 @@ export function ChatWindow({
             alert("The pasted image is too large. Attachments are limited to a maximum of 25 MB.");
             return;
           }
-          const reader = new FileReader();
-          reader.onload = () => {
+          compressImage(file, (data, size) => {
             setSelectedFile({
-              name: `pasted_image_${Date.now()}.png`,
-              type: file.type || 'image/png',
-              size: file.size,
-              data: reader.result as string
+              name: `pasted_image_${Date.now()}.jpg`,
+              type: 'image/jpeg',
+              size: size,
+              data: data
             });
-          };
-          reader.readAsDataURL(file);
+          });
           inputRef.current?.focus();
           break;
         }
