@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -7,6 +7,14 @@ interface LandingPageProps {
 
 export function LandingPage({ onLogin, onSignUp }: LandingPageProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % 3);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <div className="min-h-screen text-on-surface bg-background selection:bg-primary-container selection:text-on-primary-container flex flex-col font-sans overflow-x-hidden">
@@ -302,16 +310,113 @@ export function LandingPage({ onLogin, onSignUp }: LandingPageProps) {
         {/* 6. Final CTA (Responsive) */}
         {/* Desktop CTA Banner (>= md) */}
         <section className="hidden md:block px-margin-desktop mt-16">
-          <div className="max-w-[1280px] mx-auto bg-surface-container-high p-xl md:p-32 text-center rounded-3xl relative overflow-hidden border border-outline-variant/30 shadow-sm">
-            <h2 className="font-headline-lg text-headline-lg text-on-surface mb-md font-black">Ready to boost productivity?</h2>
-            <p className="font-body-lg text-body-lg text-on-surface-variant mb-xl max-w-[576px] mx-auto">Join over 10,000 teams using CollabHub to stay ahead.</p>
-            <div className="flex justify-center gap-md">
-              <button 
-                onClick={onSignUp}
-                className="bg-primary hover:bg-primary/95 text-on-primary px-xl py-md rounded-lg font-label-md text-label-md hover:opacity-90 active:scale-95 transition-all shadow-md cursor-pointer font-bold"
-              >
-                Start Your Free Trial
-              </button>
+          <div className="max-w-[1280px] mx-auto bg-surface-container-high p-xl md:p-16 rounded-3xl relative overflow-hidden border border-outline-variant/30 shadow-sm flex flex-col md:flex-row items-center justify-between gap-xl">
+            {/* Left Side: Content */}
+            <div className="flex-1 flex flex-col items-start text-left max-w-[550px]">
+              <span className="font-label-md text-label-md text-primary font-bold uppercase tracking-wider mb-sm">CollabHub Workspace</span>
+              <h2 className="font-headline-lg text-headline-lg text-on-surface mb-md font-black leading-tight">Ready to boost productivity?</h2>
+              <p className="font-body-lg text-body-lg text-on-surface-variant mb-xl">Join over 10,000 teams using CollabHub to stay ahead.</p>
+              <div className="flex gap-md">
+                <button 
+                  onClick={onSignUp}
+                  className="bg-primary hover:bg-primary/95 text-on-primary px-xl py-md rounded-lg font-label-md text-label-md hover:opacity-90 active:scale-95 transition-all shadow-md cursor-pointer font-bold border-none"
+                >
+                  Start Your Free Trial
+                </button>
+              </div>
+            </div>
+
+            {/* Right Side: Mockup Slideshow */}
+            <div className="flex-1 w-full max-w-[500px] h-[320px] rounded-2xl bg-white dark:bg-slate-900 border border-outline-variant/50 overflow-hidden relative shadow-lg p-md flex items-center justify-center">
+              
+              {/* Slide 0: Chat Mockup */}
+              <div className={`absolute inset-0 p-md flex flex-col gap-sm transition-all duration-700 transform ${
+                activeSlide === 0 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-12 scale-95 pointer-events-none'
+              }`}>
+                <div className="flex items-center gap-sm border-b border-outline-variant/20 pb-xs">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-400"></span>
+                  <span className="text-[10px] text-on-surface-variant/60 font-mono ml-xs">#collabhub-general</span>
+                </div>
+                <div className="flex-1 flex flex-col gap-sm justify-end">
+                  <div className="self-start bg-slate-100 dark:bg-slate-800 p-sm rounded-r-xl rounded-tl-xl max-w-[80%] shadow-sm text-left">
+                    <p className="text-[11px] font-bold text-primary">Jamali NM</p>
+                    <p className="text-[11px] text-on-surface-variant">Did we deploy the notification service?</p>
+                  </div>
+                  <div className="self-end bg-primary/10 p-sm rounded-l-xl rounded-tr-xl max-w-[80%] shadow-sm text-left">
+                    <p className="text-[11px] font-bold text-primary">You</p>
+                    <p className="text-[11px] text-on-surface">Yes, and quick reply action logs are live! 🚀</p>
+                    <span className="text-[9px] text-primary float-right mt-1 font-bold">read —●</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Slide 1: File Storage Mockup */}
+              <div className={`absolute inset-0 p-md flex flex-col gap-sm transition-all duration-700 transform ${
+                activeSlide === 1 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-12 scale-95 pointer-events-none'
+              }`}>
+                <div className="flex items-center justify-between border-b border-outline-variant/20 pb-xs">
+                  <span className="text-[11px] font-bold text-on-surface">Shared Workspace Files</span>
+                  <span className="material-symbols-outlined text-[16px] text-primary">search</span>
+                </div>
+                <div className="flex-1 flex flex-col gap-xs pt-xs">
+                  <div className="flex items-center justify-between p-xs bg-slate-100/50 dark:bg-slate-800/40 rounded border border-outline-variant/10">
+                    <div className="flex items-center gap-xs">
+                      <span className="material-symbols-outlined text-primary text-[18px]">picture_as_pdf</span>
+                      <span className="text-[10px] font-medium text-on-surface truncate max-w-[150px]">architecture_spec.pdf</span>
+                    </div>
+                    <span className="text-[9px] bg-primary/10 text-primary px-1 rounded font-bold">1.2 MB</span>
+                  </div>
+                  <div className="flex items-center justify-between p-xs bg-slate-100/50 dark:bg-slate-800/40 rounded border border-outline-variant/10">
+                    <div className="flex items-center gap-xs">
+                      <span className="material-symbols-outlined text-primary text-[18px]">image</span>
+                      <span className="text-[10px] font-medium text-on-surface truncate max-w-[150px]">login_design_v2.png</span>
+                    </div>
+                    <span className="text-[9px] bg-primary/10 text-primary px-1 rounded font-bold">840 KB</span>
+                  </div>
+                  <div className="flex items-center justify-between p-xs bg-slate-100/50 dark:bg-slate-800/40 rounded border border-outline-variant/10">
+                    <div className="flex items-center gap-xs">
+                      <span className="material-symbols-outlined text-primary text-[18px]">description</span>
+                      <span className="text-[10px] font-medium text-on-surface truncate max-w-[150px]">readme_guide.md</span>
+                    </div>
+                    <span className="text-[9px] bg-primary/10 text-primary px-1 rounded font-bold">14 KB</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Slide 2: Bento Velocity Analytics Mockup */}
+              <div className={`absolute inset-0 p-md flex flex-col gap-sm transition-all duration-700 transform ${
+                activeSlide === 2 ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-12 scale-95 pointer-events-none'
+              }`}>
+                <div className="flex items-center justify-between border-b border-outline-variant/20 pb-xs">
+                  <span className="text-[11px] font-bold text-on-surface font-black">Performance Bento</span>
+                  <span className="text-[9px] bg-green-500/10 text-green-600 px-1.5 rounded font-bold flex items-center gap-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Live
+                  </span>
+                </div>
+                <div className="flex-1 grid grid-cols-2 gap-sm pt-xs">
+                  <div className="p-xs bg-slate-100/50 dark:bg-slate-800/40 rounded border border-outline-variant/10 flex flex-col justify-between text-left">
+                    <span className="text-[9px] text-on-surface-variant font-medium">Message Velocity</span>
+                    <span className="text-xs font-black text-primary">1,240 / hr</span>
+                  </div>
+                  <div className="p-xs bg-slate-100/50 dark:bg-slate-800/40 rounded border border-outline-variant/10 flex flex-col justify-between text-left">
+                    <span className="text-[9px] text-on-surface-variant font-medium">Delivery Latency</span>
+                    <span className="text-xs font-black text-green-600">84ms</span>
+                  </div>
+                  <div className="col-span-2 p-xs bg-slate-100/50 dark:bg-slate-800/40 rounded border border-outline-variant/10 flex items-center justify-between text-left">
+                    <span className="text-[9px] text-on-surface-variant font-medium">PWA Push Status</span>
+                    <span className="text-[9px] text-primary font-bold">VAPID Connected</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Indicator Dots */}
+              <div className="absolute bottom-2.5 flex gap-xs">
+                <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeSlide === 0 ? 'bg-primary w-3' : 'bg-outline-variant'}`}></span>
+                <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeSlide === 1 ? 'bg-primary w-3' : 'bg-outline-variant'}`}></span>
+                <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeSlide === 2 ? 'bg-primary w-3' : 'bg-outline-variant'}`}></span>
+              </div>
             </div>
           </div>
         </section>
