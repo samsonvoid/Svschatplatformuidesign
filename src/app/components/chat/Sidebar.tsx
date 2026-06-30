@@ -13,6 +13,8 @@ interface SidebarProps {
   onRefreshChats: () => void;
   showNewChatModal: boolean;
   setShowNewChatModal: (show: boolean) => void;
+  mutedChats: {[chatId: string]: string};
+  onMuteToggle: (chatId: string, duration: '8h' | '1w' | 'forever' | 'unmute') => void;
 }
 
 export function Sidebar({
@@ -22,7 +24,9 @@ export function Sidebar({
   onSelectChat,
   onRefreshChats,
   showNewChatModal,
-  setShowNewChatModal
+  setShowNewChatModal,
+  mutedChats,
+  onMuteToggle
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [directoryUsers, setDirectoryUsers] = useState<User[]>([]);
@@ -266,15 +270,21 @@ export function Sidebar({
           </div>
         ) : (
           <div className="space-y-sm">
-            {filteredChats.map((chat) => (
-              <ChatListItem
-                key={chat.id}
-                chat={chat}
-                isSelected={chat.id === selectedChatId}
-                onClick={() => onSelectChat(chat.id)}
-                timeAgo={getTimeAgo(chat.lastMessageTime)}
-              />
-            ))}
+            {filteredChats.map((chat) => {
+              const muteUntil = mutedChats[chat.id];
+              const isMuted = muteUntil && new Date(muteUntil) > new Date();
+              return (
+                <ChatListItem
+                  key={chat.id}
+                  chat={chat}
+                  isSelected={chat.id === selectedChatId}
+                  onClick={() => onSelectChat(chat.id)}
+                  timeAgo={getTimeAgo(chat.lastMessageTime)}
+                  isMuted={!!isMuted}
+                  onMuteToggle={(duration) => onMuteToggle(chat.id, duration)}
+                />
+              );
+            })}
           </div>
         )}
       </div>

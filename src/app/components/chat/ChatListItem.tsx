@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Chat } from '../../App';
 import { SOCKET_URL } from '../../App';
 
@@ -6,13 +7,17 @@ interface ChatListItemProps {
   isSelected: boolean;
   onClick: () => void;
   timeAgo: string;
+  isMuted?: boolean;
+  onMuteToggle?: (duration: '8h' | '1w' | 'forever' | 'unmute') => void;
 }
 
 export function ChatListItem({
   chat,
   isSelected,
   onClick,
-  timeAgo
+  timeAgo,
+  isMuted = false,
+  onMuteToggle
 }: ChatListItemProps) {
   const isGroup = chat.type === 'group';
   const displayName = isGroup ? chat.group!.name : chat.user!.name;
@@ -46,11 +51,12 @@ export function ChatListItem({
   };
 
   const imgUrl = !isGroup ? getAvatarUrl(displayAvatar) : null;
+  const [showMuteMenu, setShowMuteMenu] = useState(false);
 
   return (
     <div
       onClick={onClick}
-      className={`flex items-center p-md gap-md tap-highlight-transparent cursor-pointer transition-all duration-200 rounded-xl ${
+      className={`flex items-center p-md gap-md tap-highlight-transparent cursor-pointer transition-all duration-200 rounded-xl relative ${
         isSelected
           ? 'bg-surface-container-low border-l-4 border-primary shadow-sm active:bg-surface-container-high'
           : 'bg-white border border-outline-variant/30 active:bg-surface-container hover:bg-slate-50/50'
@@ -84,9 +90,14 @@ export function ChatListItem({
           }`}>
             {displayName}
           </h3>
-          <span className="font-label-sm text-label-sm text-on-surface-variant">
-            {timeAgo}
-          </span>
+          <div className="flex items-center gap-xs flex-shrink-0">
+            {isMuted && (
+              <span className="material-symbols-outlined text-[16px] text-on-surface-variant/60">volume_off</span>
+            )}
+            <span className="font-label-sm text-label-sm text-on-surface-variant">
+              {timeAgo}
+            </span>
+          </div>
         </div>
         <p className={`font-body-sm text-body-sm truncate ${
           chat.unreadCount > 0 || isSelected
@@ -103,6 +114,30 @@ export function ChatListItem({
           {chat.unreadCount}
         </div>
       )}
+
+      {/* Options Menu Button (Dots) */}
+      <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+        <button 
+          onClick={() => setShowMuteMenu(!showMuteMenu)}
+          className="material-symbols-outlined text-[18px] text-on-surface-variant/40 hover:text-primary transition-colors cursor-pointer select-none focus:outline-none p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          more_vert
+        </button>
+        
+        {showMuteMenu && (
+          <div className="absolute right-0 top-full mt-xs w-[140px] bg-white dark:bg-slate-900 border border-outline-variant dark:border-outline rounded-lg shadow-lg z-[60] py-1 font-label-md text-[11px] animate-fade-in text-left">
+            {!isMuted ? (
+              <>
+                <button onClick={() => { onMuteToggle?.('8h'); setShowMuteMenu(false); }} className="w-full px-md py-sm hover:bg-slate-100 dark:hover:bg-slate-800 text-on-surface dark:text-white cursor-pointer block border-none bg-transparent text-left">Mute for 8h</button>
+                <button onClick={() => { onMuteToggle?.('1w'); setShowMuteMenu(false); }} className="w-full px-md py-sm hover:bg-slate-100 dark:hover:bg-slate-800 text-on-surface dark:text-white cursor-pointer block border-none bg-transparent text-left">Mute for 1w</button>
+                <button onClick={() => { onMuteToggle?.('forever'); setShowMuteMenu(false); }} className="w-full px-md py-sm hover:bg-slate-100 dark:hover:bg-slate-800 text-on-surface dark:text-white cursor-pointer block border-none bg-transparent text-left">Mute Forever</button>
+              </>
+            ) : (
+              <button onClick={() => { onMuteToggle?.('unmute'); setShowMuteMenu(false); }} className="w-full px-md py-sm hover:bg-slate-100 dark:hover:bg-slate-800 text-primary cursor-pointer block border-none bg-transparent font-bold text-left">Unmute</button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

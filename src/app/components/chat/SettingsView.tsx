@@ -70,10 +70,44 @@ export function SettingsView({
     return null;
   });
   
-  // Database Preferences (Mapped exactly to user_preferences table schema)
-  const [newMessages, setNewMessages] = useState(currentUser.newMessagesAlert ?? true);
-  const [mentionsOnly, setMentionsOnly] = useState(currentUser.mentionsOnlyAlert ?? false);
-  const [soundEffects, setSoundEffects] = useState(currentUser.soundEffectsAlert ?? true);
+  // Database Preferences (Mapped exactly to user_notification_settings table schema)
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [vibrationEnabled, setVibrationEnabled] = useState(true);
+  const [popupEnabled, setPopupEnabled] = useState(true);
+  const [showPreviewEnabled, setShowPreviewEnabled] = useState(true);
+  const [dndStart, setDndStart] = useState('22:00');
+  const [dndEnd, setDndEnd] = useState('07:00');
+  const [dndActive, setDndActive] = useState(false);
+
+  // Load custom notification settings
+  useEffect(() => {
+    const token = sessionStorage.getItem('collabhub_token');
+    fetch(`${SOCKET_URL}/api/notifications/settings`, {
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && data.data) {
+        const s = data.data;
+        setPushEnabled(s.push_enabled ?? true);
+        setSoundEnabled(s.sound ?? true);
+        setVibrationEnabled(s.vibration ?? true);
+        setPopupEnabled(s.popup ?? true);
+        setShowPreviewEnabled(s.show_preview ?? true);
+        if (s.dnd_start && s.dnd_end) {
+          setDndStart(s.dnd_start.slice(0, 5));
+          setDndEnd(s.dnd_end.slice(0, 5));
+          setDndActive(true);
+        } else {
+          setDndActive(false);
+        }
+      }
+    })
+    .catch(err => console.error('Error fetching settings:', err));
+  }, []);
 
   // In-System Alert Banner States
   const [systemToast, setSystemToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -159,11 +193,38 @@ export function SettingsView({
       theme,
       accentColor,
       fontSize,
-      newMessagesAlert: newMessages,
-      mentionsOnlyAlert: mentionsOnly,
-      soundEffectsAlert: soundEffects
+      newMessagesAlert: pushEnabled,
+      mentionsOnlyAlert: false,
+      soundEffectsAlert: soundEnabled
     };
     onUpdateUser(updatedUser);
+
+    // Save notification settings to Postgres
+    const token = sessionStorage.getItem('collabhub_token');
+    fetch(`${SOCKET_URL}/api/notifications/settings`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        push_enabled: pushEnabled,
+        sound: soundEnabled,
+        vibration: vibrationEnabled,
+        popup: popupEnabled,
+        show_preview: showPreviewEnabled,
+        dnd_start: dndActive ? dndStart + ':00' : null,
+        dnd_end: dndActive ? dndEnd + ':00' : null
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) {
+        console.error('Failed to save notification settings:', data.message);
+      }
+    })
+    .catch(err => console.error('Error saving settings:', err));
+
     showToast("Changes saved successfully!", "success");
   };
 
@@ -420,50 +481,115 @@ export function SettingsView({
             <section className="bg-surface-container-lowest dark:bg-surface-container-low border border-outline-variant dark:border-outline rounded-xl p-lg shadow-sm space-y-lg">
               <h2 className="font-headline-sm text-headline-sm text-on-surface dark:text-primary-fixed-dim border-b border-outline-variant/30 pb-sm font-bold">Preferences</h2>
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-md">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-md">
                 
-                {/* 1. New Messages Toggle */}
+                {/* 1. Push Notifications Toggle */}
                 <div className="flex flex-col justify-between p-md bg-background dark:bg-surface-container/50 border border-outline-variant/30 rounded-lg min-h-[100px]">
                   <div className="flex items-start gap-md">
-                    <span className="material-symbols-outlined text-primary mt-0.5">chat</span>
+                    <span className="material-symbols-outlined text-primary mt-0.5">notifications</span>
                     <div>
-                      <p className="font-body-md text-body-md text-on-surface dark:text-white font-bold leading-tight">New Messages</p>
-                      <p className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Push alerts for incoming messages</p>
+                      <p className="font-body-md text-body-md text-on-surface dark:text-white font-bold leading-tight">Push Notifications</p>
+                      <p className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Push alerts when app is closed</p>
                     </div>
                   </div>
                   <div className="flex justify-end mt-sm">
-                    <Toggle checked={newMessages} onChange={() => { setNewMessages(!newMessages); showToast(`New Messages ${!newMessages ? 'enabled' : 'disabled'}`, 'info'); }} />
+                    <Toggle checked={pushEnabled} onChange={() => { setPushEnabled(!pushEnabled); showToast(`Push Notifications ${!pushEnabled ? 'enabled' : 'disabled'}`, 'info'); }} />
                   </div>
                 </div>
 
-                {/* 2. Mentions Only Toggle */}
-                <div className="flex flex-col justify-between p-md bg-background dark:bg-surface-container/50 border border-outline-variant/30 rounded-lg min-h-[100px]">
-                  <div className="flex items-start gap-md">
-                    <span className="material-symbols-outlined text-primary mt-0.5">alternate_email</span>
-                    <div>
-                      <p className="font-body-md text-body-md text-on-surface dark:text-white font-bold leading-tight">Mentions Only</p>
-                      <p className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Only alert when someone @mentions you</p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end mt-sm">
-                    <Toggle checked={mentionsOnly} onChange={() => { setMentionsOnly(!mentionsOnly); showToast(`Mentions Only ${!mentionsOnly ? 'enabled' : 'disabled'}`, 'info'); }} />
-                  </div>
-                </div>
-
-                {/* 3. Sound Effects Toggle */}
+                {/* 2. Notification Sound Toggle */}
                 <div className="flex flex-col justify-between p-md bg-background dark:bg-surface-container/50 border border-outline-variant/30 rounded-lg min-h-[100px]">
                   <div className="flex items-start gap-md">
                     <span className="material-symbols-outlined text-primary mt-0.5">volume_up</span>
                     <div>
-                      <p className="font-body-md text-body-md text-on-surface dark:text-white font-bold leading-tight">Sound Effects</p>
-                      <p className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Play audio cues for notifications</p>
+                      <p className="font-body-md text-body-md text-on-surface dark:text-white font-bold leading-tight">Notification Sound</p>
+                      <p className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Play audio cues on messages</p>
                     </div>
                   </div>
                   <div className="flex justify-end mt-sm">
-                    <Toggle checked={soundEffects} onChange={() => { setSoundEffects(!soundEffects); showToast(`Sound Effects ${!soundEffects ? 'muted' : 'unmuted'}`, 'info'); }} />
+                    <Toggle checked={soundEnabled} onChange={() => { setSoundEnabled(!soundEnabled); showToast(`Notification Sound ${!soundEnabled ? 'enabled' : 'muted'}`, 'info'); }} />
                   </div>
                 </div>
 
+                {/* 3. Notification Vibration Toggle */}
+                <div className="flex flex-col justify-between p-md bg-background dark:bg-surface-container/50 border border-outline-variant/30 rounded-lg min-h-[100px]">
+                  <div className="flex items-start gap-md">
+                    <span className="material-symbols-outlined text-primary mt-0.5">vibration</span>
+                    <div>
+                      <p className="font-body-md text-body-md text-on-surface dark:text-white font-bold leading-tight">Vibration</p>
+                      <p className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Vibrate mobile on alerts</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-sm">
+                    <Toggle checked={vibrationEnabled} onChange={() => { setVibrationEnabled(!vibrationEnabled); showToast(`Vibration ${!vibrationEnabled ? 'enabled' : 'disabled'}`, 'info'); }} />
+                  </div>
+                </div>
+
+                {/* 4. Desktop Popups Toggle */}
+                <div className="flex flex-col justify-between p-md bg-background dark:bg-surface-container/50 border border-outline-variant/30 rounded-lg min-h-[100px]">
+                  <div className="flex items-start gap-md">
+                    <span className="material-symbols-outlined text-primary mt-0.5">featured_video</span>
+                    <div>
+                      <p className="font-body-md text-body-md text-on-surface dark:text-white font-bold leading-tight">Banner Popups</p>
+                      <p className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Show native OS alert banners</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-sm">
+                    <Toggle checked={popupEnabled} onChange={() => { setPopupEnabled(!popupEnabled); showToast(`Popups ${!popupEnabled ? 'enabled' : 'disabled'}`, 'info'); }} />
+                  </div>
+                </div>
+
+                {/* 5. Show Preview Toggle */}
+                <div className="flex flex-col justify-between p-md bg-background dark:bg-surface-container/50 border border-outline-variant/30 rounded-lg min-h-[100px]">
+                  <div className="flex items-start gap-md">
+                    <span className="material-symbols-outlined text-primary mt-0.5">visibility</span>
+                    <div>
+                      <p className="font-body-md text-body-md text-on-surface dark:text-white font-bold leading-tight">Show Preview</p>
+                      <p className="font-label-sm text-label-sm text-on-surface-variant mt-0.5">Include message text in push</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-sm">
+                    <Toggle checked={showPreviewEnabled} onChange={() => { setShowPreviewEnabled(!showPreviewEnabled); showToast(`Previews ${!showPreviewEnabled ? 'enabled' : 'masked'}`, 'info'); }} />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* DND Silent Schedule Section */}
+              <div className="border-t border-outline-variant/20 pt-md mt-md space-y-md">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-md">
+                    <span className="material-symbols-outlined text-primary">do_not_disturb_on</span>
+                    <div>
+                      <p className="font-body-md text-body-md text-on-surface dark:text-white font-bold">Do Not Disturb (Silent Hours)</p>
+                      <p className="font-label-sm text-label-sm text-on-surface-variant">Mute sound and vibration during scheduled hours</p>
+                    </div>
+                  </div>
+                  <Toggle checked={dndActive} onChange={() => { setDndActive(!dndActive); showToast(`Do Not Disturb ${!dndActive ? 'activated' : 'deactivated'}`, 'info'); }} />
+                </div>
+
+                {dndActive && (
+                  <div className="flex flex-wrap gap-md items-center bg-background dark:bg-surface-container/30 p-md rounded-lg border border-outline-variant/20 animate-fade-in">
+                    <div className="flex items-center gap-sm">
+                      <label className="font-label-md text-label-md text-on-surface-variant">Start Time</label>
+                      <input 
+                        type="time" 
+                        value={dndStart} 
+                        onChange={(e) => setDndStart(e.target.value)} 
+                        className="bg-surface-bright dark:bg-surface-container border border-outline-variant dark:border-outline rounded px-sm py-xs font-body-sm text-body-sm dark:text-white outline-none"
+                      />
+                    </div>
+                    <div className="flex items-center gap-sm">
+                      <label className="font-label-md text-label-md text-on-surface-variant">End Time</label>
+                      <input 
+                        type="time" 
+                        value={dndEnd} 
+                        onChange={(e) => setDndEnd(e.target.value)} 
+                        className="bg-surface-bright dark:bg-surface-container border border-outline-variant dark:border-outline rounded px-sm py-xs font-body-sm text-body-sm dark:text-white outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
 

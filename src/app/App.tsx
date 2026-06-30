@@ -10,6 +10,21 @@ import { io } from 'socket.io-client';
 
 export const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -238,6 +253,11 @@ export default function App() {
     }
   }, []);
 
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  const [inAppNotificationToast, setInAppNotificationToast] = useState<any | null>(null);
+  const [mutedChats, setMutedChats] = useState<{[chatId: string]: string}>({});
+
   const [socketStatus, setSocketStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
   const [socket, setSocket] = useState<any>(null);
 
@@ -362,6 +382,14 @@ export default function App() {
       }));
     });
 
+    newSocket.on('notification-received', (data: any) => {
+      console.log('[Socket] Notification received:', data);
+      setNotifications(prev => [data, ...prev]);
+      playChime();
+      setInAppNotificationToast(data);
+      setTimeout(() => setInAppNotificationToast(null), 5000);
+    });
+
     setSocket(newSocket);
 
     return () => {
@@ -369,6 +397,247 @@ export default function App() {
       setSocket(null);
     };
   }, [authView]);
+
+  // Synthetic Chime generator using Web Audio API (ensures sound chimes cleanly)
+  const playChime = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+      osc.frequency.exponentialRampToValueAtTime(1318.51, audioCtx.currentTime + 0.15); // E6
+      
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.45);
+    } catch (err) {
+      console.warn('[Chime] Playback failed:', err);
+    }
+  };
+
+  // Push notifications subscription config
+  const setupPushNotifications = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.log('[PushManager] Not supported on this browser.');
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        console.log('[PushManager] Permission was not granted.');
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      const res = await fetch(`${SOCKET_URL}/api/notifications/vapid-public-key`);
+      const keyData = await res.json();
+      if (!keyData.publicKey) return;
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
+      });
+
+      const token = sessionStorage.getItem('collabhub_token');
+      await fetch(`${SOCKET_URL}/api/notifications/register-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          token: subscription,
+          deviceType: 'browser'
+        })
+      });
+      console.log('✅ Web Push Registered Successfully!');
+    } catch (err) {
+      console.error('[PushSetup] Failed to register Web Push:', err);
+    }
+  };
+
+  // 1.5. Fetch notification history on boot/login
+  useEffect(() => {
+    if (authView !== 'app') return;
+    const token = sessionStorage.getItem('collabhub_token');
+    
+    fetch(`${SOCKET_URL}/api/notifications`, {
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && data.data) {
+        setNotifications(data.data);
+      }
+    })
+    .catch(err => console.error('Error loading notification history:', err));
+
+    setupPushNotifications();
+  }, [authView]);
+
+  // Fetch muted chats list from PostgreSQL
+  useEffect(() => {
+    if (authView !== 'app') return;
+    const token = sessionStorage.getItem('collabhub_token');
+    fetch(`${SOCKET_URL}/api/notifications/muted`, {
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && data.data) {
+        const mapping: {[chatId: string]: string} = {};
+        for (const row of data.data) {
+          mapping[row.conversation_id] = row.mute_until;
+        }
+        setMutedChats(mapping);
+      }
+    })
+    .catch(err => console.error('Error fetching muted chats:', err));
+  }, [authView]);
+
+  // Toggle/submit mute status
+  const handleMuteToggle = (chatId: string, duration: '8h' | '1w' | 'forever' | 'unmute') => {
+    const token = sessionStorage.getItem('collabhub_token');
+    const isUnmute = duration === 'unmute';
+    const method = isUnmute ? 'DELETE' : 'POST';
+    const url = `${SOCKET_URL}/api/notifications/mute/${chatId}`;
+
+    fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: !isUnmute ? JSON.stringify({ duration }) : undefined
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        setMutedChats(prev => {
+          const next = { ...prev };
+          if (isUnmute) {
+            delete next[chatId];
+          } else {
+            next[chatId] = data.muteUntil;
+          }
+          return next;
+        });
+      }
+    })
+    .catch(err => console.error('Mute action failed:', err));
+  };
+
+  // 1.6. Listen to Service Worker message clicks
+  useEffect(() => {
+    const handleServiceWorkerMessage = (e: MessageEvent) => {
+      if (e.data && e.data.type === 'NAVIGATE_TO_CHAT') {
+        const chatId = e.data.chatId;
+        if (chatId) {
+          handleSetActiveTab('chats');
+          setSelectedChatId(chatId);
+        }
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handleServiceWorkerMessage);
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage);
+    };
+  }, []);
+
+  // 1.7. Handle notification redirect query parameters
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const chatId = params.get('chatId');
+    if (chatId) {
+      handleSetActiveTab('chats');
+      setSelectedChatId(chatId);
+      window.history.replaceState({}, document.title, '/');
+    }
+  }, [authView]);
+
+  // 1.8. Sync total unread counters to App Launcher Badge
+  useEffect(() => {
+    const totalUnreadChats = chats.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+    const totalUnreadNotifs = notifications.filter(n => !n.is_read).length;
+    const grandTotal = totalUnreadChats + totalUnreadNotifs;
+
+    if ('setAppBadge' in navigator) {
+      if (grandTotal > 0) {
+        navigator.setAppBadge(grandTotal).catch(err => console.log('Badging error:', err));
+      } else {
+        navigator.clearAppBadge().catch(err => console.log('Badging error:', err));
+      }
+    }
+  }, [chats, notifications]);
+
+  const handleMarkAllNotificationsRead = () => {
+    const token = sessionStorage.getItem('collabhub_token');
+    fetch(`${SOCKET_URL}/api/notifications/read-all`, {
+      method: 'PUT',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      }
+    })
+    .catch(err => console.error(err));
+  };
+
+  const handleNotificationItemClick = (n: any) => {
+    if (!n.is_read) {
+      const token = sessionStorage.getItem('collabhub_token');
+      fetch(`${SOCKET_URL}/api/notifications/${n.id}/read`, {
+        method: 'PUT',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, is_read: true } : item));
+        }
+      })
+      .catch(err => console.error(err));
+    }
+
+    if (n.chat_id) {
+      setSelectedChatId(n.chat_id);
+      handleSetActiveTab('chats');
+    }
+    setShowNotificationCenter(false);
+  };
+
+  const formatNotificationTime = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      const diffMs = Date.now() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) return `${diffHours}h ago`;
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    } catch {
+      return '';
+    }
+  };
 
   // 2. Fetch all user conversations from API
   const fetchChats = () => {
@@ -700,7 +969,35 @@ export default function App() {
   }
 
   return (
-    <div className="size-full flex flex-col bg-surface overflow-hidden">
+    <div className="size-full flex flex-col bg-surface overflow-hidden relative">
+      {/* Dynamic In-App Neon Notification Banner Overlay */}
+      {inAppNotificationToast && (
+        <div 
+          onClick={() => {
+            if (inAppNotificationToast.chatId) {
+              setSelectedChatId(inAppNotificationToast.chatId);
+              handleSetActiveTab('chats');
+            }
+            setInAppNotificationToast(null);
+          }}
+          className="fixed top-6 right-6 w-[340px] p-md bg-slate-900/95 dark:bg-slate-950/95 border-l-4 border-primary text-white rounded-r-xl shadow-2xl flex items-start gap-md z-[100] cursor-pointer animate-slide-in hover:scale-105 active:scale-98 transition-all backdrop-blur-md"
+        >
+          <div className="w-9 h-9 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm flex-shrink-0 uppercase select-none">
+            {inAppNotificationToast.senderAvatar || 'CH'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-label-md text-xs font-bold leading-tight truncate">{inAppNotificationToast.title}</p>
+            <p className="font-body-md text-xs text-slate-300 leading-snug mt-xs truncate">{inAppNotificationToast.body}</p>
+          </div>
+          <button 
+            onClick={(e) => { e.stopPropagation(); setInAppNotificationToast(null); }}
+            className="material-symbols-outlined text-[18px] text-slate-400 hover:text-white cursor-pointer bg-transparent border-none"
+          >
+            close
+          </button>
+        </div>
+      )}
+
       {/* TopNavBar */}
       <header className="h-[64px] w-full sticky top-0 z-40 bg-surface border-b border-outline-variant flex justify-between items-center px-lg flex-shrink-0">
         <div className="flex items-center gap-lg">
@@ -732,7 +1029,69 @@ export default function App() {
         </div>
         <div className="flex items-center gap-md">
           <button onClick={() => setShowSearchModal(true)} className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer">search</button>
-          <button className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer">notifications</button>
+          
+          <div className="relative flex items-center">
+            <button 
+              onClick={() => setShowNotificationCenter(!showNotificationCenter)}
+              className="relative material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer select-none focus:outline-none"
+            >
+              notifications
+              {notifications.filter(n => !n.is_read).length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-error text-white font-bold text-[9px] flex items-center justify-center animate-bounce">
+                  {notifications.filter(n => !n.is_read).length}
+                </span>
+              )}
+            </button>
+            
+            {showNotificationCenter && (
+              <div className="absolute right-0 top-full mt-xs w-[320px] max-h-[400px] overflow-y-auto bg-surface-container-lowest dark:bg-surface-container-low border border-outline-variant dark:border-outline rounded-xl shadow-xl z-50 flex flex-col hide-scrollbar animate-fade-in">
+                <div className="p-md border-b border-outline-variant/30 flex justify-between items-center bg-slate-50/55 dark:bg-slate-900/30 sticky top-0 backdrop-blur-sm z-10">
+                  <span className="font-label-md text-label-md font-bold text-on-surface dark:text-white">Notifications</span>
+                  {notifications.filter(n => !n.is_read).length > 0 && (
+                    <button 
+                      onClick={handleMarkAllNotificationsRead}
+                      className="text-[11px] text-primary hover:underline font-bold bg-transparent border-none cursor-pointer"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
+                </div>
+                
+                <div className="divide-y divide-outline-variant/20">
+                  {notifications.length === 0 ? (
+                    <div className="p-xl text-center flex flex-col items-center gap-sm">
+                      <span className="material-symbols-outlined text-[36px] text-outline-variant">notifications_off</span>
+                      <p className="font-body-md text-xs text-on-surface-variant">No notifications yet</p>
+                    </div>
+                  ) : (
+                    notifications.map((n) => {
+                      const timeStr = formatNotificationTime(n.created_at);
+                      return (
+                        <div 
+                          key={n.id}
+                          onClick={() => handleNotificationItemClick(n)}
+                          className={`p-md flex gap-md items-start hover:bg-surface-container-low transition-colors cursor-pointer text-left ${!n.is_read ? 'bg-primary/5' : ''}`}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs flex-shrink-0 select-none uppercase">
+                            {n.sender_avatar && n.sender_avatar.length <= 2 ? n.sender_avatar : (n.sender_name || 'U').slice(0, 2)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-label-md text-xs font-bold text-on-surface dark:text-white leading-tight truncate">{n.title}</p>
+                            <p className="font-body-md text-xs text-on-surface-variant leading-snug mt-xs truncate">{n.body}</p>
+                            <span className="text-[10px] text-on-surface-variant opacity-60 mt-xs block">{timeStr}</span>
+                          </div>
+                          {!n.is_read && (
+                            <span className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0 mt-1"></span>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer">info</button>
           <div className="flex items-center gap-xs bg-slate-100 dark:bg-slate-800 px-sm py-unit rounded-full border border-outline-variant/30 flex-shrink-0 select-none">
             <span className={`w-2 h-2 rounded-full ${
@@ -909,6 +1268,8 @@ export default function App() {
                   onRefreshChats={fetchChats}
                   showNewChatModal={showNewChatModal}
                   setShowNewChatModal={setShowNewChatModal}
+                  mutedChats={mutedChats}
+                  onMuteToggle={handleMuteToggle}
                 />
               </div>
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'collabhub-cache-v4';
+const CACHE_NAME = 'collabhub-cache-v5';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -67,4 +67,98 @@ self.addEventListener('fetch', (e) => {
       });
     })
   );
+});
+
+// ----------------------------------------------------
+// Web Push & Quick Reply Handlers
+// ----------------------------------------------------
+
+self.addEventListener('push', (e) => {
+  if (!e.data) return;
+
+  try {
+    const payload = e.data.json();
+    const title = payload.title || 'CollabHub';
+    
+    const options = {
+      body: payload.body || 'New message received',
+      icon: payload.icon || '/icons/icon.svg',
+      badge: payload.badge || '/icons/icon.svg',
+      vibrate: payload.vibrate ? [100, 50, 100] : undefined,
+      data: payload.data || {},
+      tag: payload.tag || 'chat-notification',
+      renotify: true,
+      actions: [
+        {
+          action: 'reply',
+          title: 'Reply',
+          type: 'text',
+          placeholder: 'Type reply...'
+        },
+        {
+          action: 'open',
+          title: 'Open Chat'
+        }
+      ]
+    };
+
+    e.waitUntil(self.registration.showNotification(title, options));
+  } catch (err) {
+    console.error('[SW] Error parsing push data:', err);
+  }
+});
+
+self.addEventListener('notificationclick', (e) => {
+  const notification = e.notification;
+  const action = e.action;
+  const data = notification.data || {};
+
+  notification.close();
+
+  if (action === 'reply' && e.reply) {
+    const replyText = e.reply;
+    const chatId = data.chatId;
+
+    if (!chatId || !replyText) return;
+
+    // Dispatch background quick-reply REST call
+    const promise = fetch('/api/notifications/quick-reply', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        chatId: chatId,
+        content: replyText
+      })
+    })
+    .then((res) => {
+      if (!res.ok) throw new Error('SW Quick Reply failed status code: ' + res.status);
+      return res.json();
+    })
+    .catch((err) => {
+      console.error('[SW] Quick reply submission error:', err);
+    });
+
+    e.waitUntil(promise);
+  } else {
+    // Open application and focus the correct chat room
+    const promise = self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.postMessage({
+            type: 'NAVIGATE_TO_CHAT',
+            chatId: data.chatId
+          });
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        const destUrl = data.chatId ? `/?chatId=${data.chatId}` : '/';
+        return self.clients.openWindow(destUrl);
+      }
+    });
+
+    e.waitUntil(promise);
+  }
 });
