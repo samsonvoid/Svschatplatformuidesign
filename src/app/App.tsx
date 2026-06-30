@@ -588,11 +588,10 @@ export default function App() {
     }
   }, [authView]);
 
-  // 1.8. Sync total unread counters to App Launcher Badge
+  // 1.8. Sync total unread counters to App Launcher Badge (excluding activity notifications)
   useEffect(() => {
     const totalUnreadChats = (chats || []).reduce((acc, c) => acc + (c.unreadCount || 0), 0);
-    const totalUnreadNotifs = (notifications || []).filter(n => !n.is_read).length;
-    const grandTotal = totalUnreadChats + totalUnreadNotifs;
+    const grandTotal = totalUnreadChats;
 
     if ('setAppBadge' in navigator) {
       if (grandTotal > 0) {
@@ -601,7 +600,7 @@ export default function App() {
         navigator.clearAppBadge().catch(err => console.log('Badging error:', err));
       }
     }
-  }, [chats, notifications]);
+  }, [chats]);
 
   const handleMarkAllNotificationsRead = () => {
     const token = sessionStorage.getItem('collabhub_token');
@@ -767,6 +766,22 @@ export default function App() {
 
     // Fetch full messages from DB
     const token = sessionStorage.getItem('collabhub_token');
+
+    // Mark room notifications as read in backend database and local state
+    fetch(`${SOCKET_URL}/api/notifications/read-room/${selectedChatId}`, {
+      method: 'PUT',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setNotifications(prev => (prev || []).map(n => n.chat_id === selectedChatId ? { ...n, is_read: true } : n));
+        }
+      })
+      .catch(err => console.error('[Room Notifications Sync] Failed:', err));
+
     fetch(`${SOCKET_URL}/api/chats/${selectedChatId}/messages`, {
       headers: {
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
