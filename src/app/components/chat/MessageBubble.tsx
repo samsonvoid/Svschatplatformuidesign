@@ -13,6 +13,18 @@ const renderAttachment = (attachment: NonNullable<Message['attachment']>, isOwnM
   const isImg = attachment.type.startsWith('image/');
   const downloadUrl = attachment.url.startsWith('data:') ? attachment.url : `${SOCKET_URL}${attachment.url}`;
   
+  const handleOpenImage = () => {
+    if (downloadUrl.startsWith('data:')) {
+      const w = window.open();
+      if (w) {
+        w.document.write(`<title>${attachment.name}</title><body style="margin:0; background:#0e0e12; display:flex; align-items:center; justify-content:center; min-height:100vh;"><img src="${downloadUrl}" style="max-width:100%; max-height:100vh; object-fit:contain;" /></body>`);
+        w.document.close();
+      }
+    } else {
+      window.open(downloadUrl, '_blank');
+    }
+  };
+
   if (isImg) {
     return (
       <div className="mb-xs w-[320px] max-w-full rounded-lg overflow-hidden border border-outline-variant/30 shadow-sm relative group/att flex-shrink-0 bg-slate-50 dark:bg-slate-900/40">
@@ -20,11 +32,11 @@ const renderAttachment = (attachment: NonNullable<Message['attachment']>, isOwnM
           src={downloadUrl} 
           className="max-h-60 w-full object-contain cursor-pointer hover:opacity-95 transition-opacity block" 
           alt={attachment.name}
-          onClick={() => window.open(downloadUrl, '_blank')}
+          onClick={handleOpenImage}
         />
         <div className="absolute bottom-2 right-2 flex gap-xs opacity-0 group-hover/att:opacity-100 transition-all">
           <button 
-            onClick={() => window.open(downloadUrl, '_blank')}
+            onClick={handleOpenImage}
             className="bg-slate-900/60 hover:bg-slate-900/80 text-white p-sm rounded-full flex items-center justify-center shadow-md border-none cursor-pointer"
             title="Open in New Tab"
           >
