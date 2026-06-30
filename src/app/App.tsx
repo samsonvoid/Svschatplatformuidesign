@@ -139,6 +139,55 @@ export default function App() {
     };
   });
 
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+
+  // PWA Service Worker Registration & Update triggers
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      // Register Service Worker
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => {
+          console.log('[PWA] Service Worker registered scope:', reg.scope);
+          
+          if (reg.waiting) {
+            setWaitingWorker(reg.waiting);
+            setUpdateAvailable(true);
+          }
+
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  setWaitingWorker(newWorker);
+                  setUpdateAvailable(true);
+                }
+              });
+            }
+          });
+        })
+        .catch(err => console.error('[PWA] SW registration failed:', err));
+
+      // Listen for controller change to reload page
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+    }
+  }, []);
+
+  const handlePerformUpdate = () => {
+    if (waitingWorker) {
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+      window.location.reload();
+    }
+  };
+
   // Listen for PWA installation prompt trigger
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -977,35 +1026,97 @@ export default function App() {
 
   if (authView === 'landing') {
     return (
-      <LandingPage 
-        onLogin={() => handleSetAuthView('login')} 
-        onSignUp={() => handleSetAuthView('signup')} 
-      />
+      <div className="size-full flex flex-col overflow-hidden relative">
+        {updateAvailable && (
+          <div className="bg-primary text-white px-md py-sm flex justify-between items-center text-xs font-bold animate-fade-in shadow-md z-[100] relative flex-shrink-0">
+            <div className="flex items-center gap-sm">
+              <span className="material-symbols-outlined text-[16px] animate-spin">refresh</span>
+              <span>A new update is available for CollabHub with fresh features!</span>
+            </div>
+            <button 
+              onClick={handlePerformUpdate}
+              className="bg-white text-primary px-md py-xs rounded hover:bg-slate-50 transition-all cursor-pointer select-none font-bold active:scale-95 transition-transform"
+            >
+              Update Now
+            </button>
+          </div>
+        )}
+        <LandingPage 
+          onLogin={() => handleSetAuthView('login')} 
+          onSignUp={() => handleSetAuthView('signup')} 
+        />
+      </div>
     );
   }
 
   if (authView === 'signup') {
     return (
-      <SignUpPage 
-        onLogin={() => handleSetAuthView('login')} 
-        onSubmit={handleAuthSuccess} 
-        onGoToLanding={() => handleSetAuthView('landing')}
-      />
+      <div className="size-full flex flex-col overflow-hidden relative">
+        {updateAvailable && (
+          <div className="bg-primary text-white px-md py-sm flex justify-between items-center text-xs font-bold animate-fade-in shadow-md z-[100] relative flex-shrink-0">
+            <div className="flex items-center gap-sm">
+              <span className="material-symbols-outlined text-[16px] animate-spin">refresh</span>
+              <span>A new update is available for CollabHub with fresh features!</span>
+            </div>
+            <button 
+              onClick={handlePerformUpdate}
+              className="bg-white text-primary px-md py-xs rounded hover:bg-slate-50 transition-all cursor-pointer select-none font-bold active:scale-95 transition-transform"
+            >
+              Update Now
+            </button>
+          </div>
+        )}
+        <SignUpPage 
+          onLogin={() => handleSetAuthView('login')} 
+          onSubmit={handleAuthSuccess} 
+          onGoToLanding={() => handleSetAuthView('landing')}
+        />
+      </div>
     );
   }
 
   if (authView === 'login') {
     return (
-      <LoginPage 
-        onSignUp={() => handleSetAuthView('signup')} 
-        onSubmit={handleAuthSuccess} 
-        onGoToLanding={() => handleSetAuthView('landing')}
-      />
+      <div className="size-full flex flex-col overflow-hidden relative">
+        {updateAvailable && (
+          <div className="bg-primary text-white px-md py-sm flex justify-between items-center text-xs font-bold animate-fade-in shadow-md z-[100] relative flex-shrink-0">
+            <div className="flex items-center gap-sm">
+              <span className="material-symbols-outlined text-[16px] animate-spin">refresh</span>
+              <span>A new update is available for CollabHub with fresh features!</span>
+            </div>
+            <button 
+              onClick={handlePerformUpdate}
+              className="bg-white text-primary px-md py-xs rounded hover:bg-slate-50 transition-all cursor-pointer select-none font-bold active:scale-95 transition-transform"
+            >
+              Update Now
+            </button>
+          </div>
+        )}
+        <LoginPage 
+          onSignUp={() => handleSetAuthView('signup')} 
+          onSubmit={handleAuthSuccess} 
+          onGoToLanding={() => handleSetAuthView('landing')}
+        />
+      </div>
     );
   }
 
   return (
     <div className="size-full flex flex-col bg-surface overflow-hidden relative">
+      {updateAvailable && (
+        <div className="bg-primary text-white px-md py-sm flex justify-between items-center text-xs font-bold animate-fade-in shadow-md z-[100] relative flex-shrink-0">
+          <div className="flex items-center gap-sm">
+            <span className="material-symbols-outlined text-[16px] animate-spin">refresh</span>
+            <span>A new update is available for CollabHub with fresh features!</span>
+          </div>
+          <button 
+            onClick={handlePerformUpdate}
+            className="bg-white text-primary px-md py-xs rounded hover:bg-slate-50 transition-all cursor-pointer select-none font-bold active:scale-95 transition-transform"
+          >
+            Update Now
+          </button>
+        </div>
+      )}
       {/* Dynamic In-App Neon Notification Banner Overlay */}
       {inAppNotificationToast && (
         <div 

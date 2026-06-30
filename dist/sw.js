@@ -179,3 +179,10 @@ self.addEventListener('notificationclick', (e) => {
     e.waitUntil(promise);
   }
 });
+
+// Listener for message events to force skip waiting on updates
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
