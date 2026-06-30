@@ -14,7 +14,7 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
   const [error, setError] = useState<string | null>(null);
 
   const handleSocialLogin = () => {
-    setError('OAuth login (Google, GitHub, Microsoft) is currently under construction. Please use email and password credentials (e.g. samsonprogrammer@gmail.com with password123).');
+    setError('OAuth login (Google, GitHub, Microsoft) is currently under construction. Please use your email and password credentials to log in.');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,8 +92,9 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
 
             <form onSubmit={handleSubmit} className="space-y-lg">
               {error && (
-                <div className="p-md rounded-lg bg-error/10 border border-error/20 text-error font-body-sm select-none">
-                  {error}
+                <div className="p-md rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 font-label-md text-xs flex items-start gap-sm select-none animate-fade-in">
+                  <span className="material-symbols-outlined text-[18px] mt-0.5 flex-shrink-0">error</span>
+                  <span className="leading-snug">{error}</span>
                 </div>
               )}
               <div className="space-y-sm">
@@ -213,8 +214,9 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-md">
             {error && (
-              <div className="p-md rounded-lg bg-error/10 border border-error/20 text-error font-body-sm select-none">
-                {error}
+              <div className="p-md rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 font-label-md text-xs flex items-start gap-sm select-none animate-fade-in">
+                <span className="material-symbols-outlined text-[18px] mt-0.5 flex-shrink-0">error</span>
+                <span className="leading-snug">{error}</span>
               </div>
             )}
             {/* Email Address */}
