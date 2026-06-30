@@ -29,25 +29,27 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  --background: #0d0e12; /* Deep dark slate background */
+  --foreground: #f3f4f6; /* Crisp light text */
+  --card: #15171e; /* Sleek slate card background */
+  --card-foreground: #f3f4f6;
+  --popover: #15171e;
+  --popover-foreground: #f3f4f6;
+  --primary: #4648d4; /* Retain brand indigo blue color */
+  --primary-foreground: #ffffff; /* White text on primary button */
+  --secondary: #0077aa;
+  --secondary-foreground: #ffffff;
+  --muted: #1f222b; /* Recessed dark background */
+  --muted-foreground: #9ca3af; /* Soft grey text */
+  --accent: #2a2d39;
+  --accent-foreground: #4648d4;
+  --destructive: #ba1a1a;
+  --destructive-foreground: #ffffff;
+  --border: #282b35; /* Defined borders for inputs and containers */
+  --input: #15171e;
+  --input-background: #1f222b;
+  --switch-background: #4b5563;
+  --ring: #4648d4;
 }
 
 @theme inline {
