@@ -569,8 +569,8 @@ export default function App() {
 
   // 1.8. Sync total unread counters to App Launcher Badge
   useEffect(() => {
-    const totalUnreadChats = chats.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
-    const totalUnreadNotifs = notifications.filter(n => !n.is_read).length;
+    const totalUnreadChats = (chats || []).reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+    const totalUnreadNotifs = (notifications || []).filter(n => !n.is_read).length;
     const grandTotal = totalUnreadChats + totalUnreadNotifs;
 
     if ('setAppBadge' in navigator) {
@@ -1036,9 +1036,9 @@ export default function App() {
               className="relative material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer select-none focus:outline-none"
             >
               notifications
-              {notifications.filter(n => !n.is_read).length > 0 && (
+              {(notifications || []).filter(n => !n.is_read).length > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-error text-white font-bold text-[9px] flex items-center justify-center animate-bounce">
-                  {notifications.filter(n => !n.is_read).length}
+                  {(notifications || []).filter(n => !n.is_read).length}
                 </span>
               )}
             </button>
@@ -1047,7 +1047,7 @@ export default function App() {
               <div className="absolute right-0 top-full mt-xs w-[320px] max-h-[400px] overflow-y-auto bg-surface-container-lowest dark:bg-surface-container-low border border-outline-variant dark:border-outline rounded-xl shadow-xl z-50 flex flex-col hide-scrollbar animate-fade-in">
                 <div className="p-md border-b border-outline-variant/30 flex justify-between items-center bg-slate-50/55 dark:bg-slate-900/30 sticky top-0 backdrop-blur-sm z-10">
                   <span className="font-label-md text-label-md font-bold text-on-surface dark:text-white">Notifications</span>
-                  {notifications.filter(n => !n.is_read).length > 0 && (
+                  {(notifications || []).filter(n => !n.is_read).length > 0 && (
                     <button 
                       onClick={handleMarkAllNotificationsRead}
                       className="text-[11px] text-primary hover:underline font-bold bg-transparent border-none cursor-pointer"
@@ -1058,13 +1058,13 @@ export default function App() {
                 </div>
                 
                 <div className="divide-y divide-outline-variant/20">
-                  {notifications.length === 0 ? (
+                  {(notifications || []).length === 0 ? (
                     <div className="p-xl text-center flex flex-col items-center gap-sm">
                       <span className="material-symbols-outlined text-[36px] text-outline-variant">notifications_off</span>
                       <p className="font-body-md text-xs text-on-surface-variant">No notifications yet</p>
                     </div>
                   ) : (
-                    notifications.map((n) => {
+                    (notifications || []).map((n) => {
                       const timeStr = formatNotificationTime(n.created_at);
                       return (
                         <div 
