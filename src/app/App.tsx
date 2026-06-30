@@ -158,7 +158,7 @@ export default function App() {
       clearTimeout(timeoutId);
       // 15 minutes = 15 * 60 * 1000 ms
       timeoutId = setTimeout(() => {
-        if (authView === 'app') {
+        if (authView === 'app' && localStorage.getItem('collabhub_remember') !== 'true') {
           handleLogout();
           alert("Your session was closed due to 15 minutes of inactivity for your security.");
         }
@@ -210,6 +210,9 @@ export default function App() {
     sessionStorage.removeItem('collabhub_token');
     sessionStorage.removeItem('collabhub_user');
     sessionStorage.removeItem('collabhub_auth_view');
+    localStorage.removeItem('collabhub_token');
+    localStorage.removeItem('collabhub_user');
+    localStorage.removeItem('collabhub_remember');
     setCurrentUser({
       id: 'current',
       name: 'Samson Admin',
@@ -221,8 +224,23 @@ export default function App() {
 
   // Verify session integrity on mount
   useEffect(() => {
-    const savedUser = sessionStorage.getItem('collabhub_user');
-    const token = sessionStorage.getItem('collabhub_token');
+    let savedUser = sessionStorage.getItem('collabhub_user');
+    let token = sessionStorage.getItem('collabhub_token');
+
+    // Restore from localStorage if remember-me is set
+    if (!token && localStorage.getItem('collabhub_remember') === 'true') {
+      const localToken = localStorage.getItem('collabhub_token');
+      const localUser = localStorage.getItem('collabhub_user');
+      if (localToken && localUser) {
+        sessionStorage.setItem('collabhub_token', localToken);
+        sessionStorage.setItem('collabhub_user', localUser);
+        sessionStorage.setItem('collabhub_auth_view', 'app');
+        token = localToken;
+        savedUser = localUser;
+        setAuthView('app');
+      }
+    }
+
     if (savedUser) {
       fetch(`${SOCKET_URL}/api/auth/me`, {
         headers: {
@@ -245,6 +263,9 @@ export default function App() {
           if (data && data.success && data.user) {
             setCurrentUser(data.user);
             sessionStorage.setItem('collabhub_user', JSON.stringify(data.user));
+            if (localStorage.getItem('collabhub_remember') === 'true') {
+              localStorage.setItem('collabhub_user', JSON.stringify(data.user));
+            }
           }
         })
         .catch(err => {

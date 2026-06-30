@@ -121,9 +121,6 @@ export function SettingsView({
     setTheme((currentUser.theme as ThemeMode) || 'light');
     setAccentColor(currentUser.accentColor || '#004ad3');
     setFontSize((currentUser.fontSize as FontSize) || 'medium');
-    setNewMessages(currentUser.newMessagesAlert ?? true);
-    setMentionsOnly(currentUser.mentionsOnlyAlert ?? false);
-    setSoundEffects(currentUser.soundEffectsAlert ?? true);
     if (currentUser.avatar && (currentUser.avatar.startsWith('/uploads/') || currentUser.avatar.startsWith('http') || currentUser.avatar.startsWith('data:image/'))) {
       setAvatarPreview(currentUser.avatar);
     } else {

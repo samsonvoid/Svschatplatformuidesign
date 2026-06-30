@@ -11,6 +11,7 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSocialLogin = () => {
@@ -38,6 +39,19 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
       if (data.user) {
         sessionStorage.setItem('collabhub_user', JSON.stringify(data.user));
       }
+      
+      if (rememberMe) {
+        localStorage.setItem('collabhub_token', data.token);
+        if (data.user) {
+          localStorage.setItem('collabhub_user', JSON.stringify(data.user));
+        }
+        localStorage.setItem('collabhub_remember', 'true');
+      } else {
+        localStorage.removeItem('collabhub_token');
+        localStorage.removeItem('collabhub_user');
+        localStorage.removeItem('collabhub_remember');
+      }
+      
       onSubmit();
     } catch (err: any) {
       console.error('[Login Error]:', err.message);
@@ -132,6 +146,17 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
                     <span className="material-symbols-outlined text-lg">{showPassword ? 'visibility_off' : 'visibility'}</span>
                   </button>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-sm px-xs select-none">
+                <input 
+                  type="checkbox" 
+                  id="desktop-remember" 
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                />
+                <label htmlFor="desktop-remember" className="font-label-sm text-label-sm text-on-surface-variant cursor-pointer font-medium">Keep me logged in on this device</label>
               </div>
 
               <button 
@@ -248,7 +273,7 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
                   required
                   type={showPassword ? 'text' : 'password'}
                 />
-                <button 
+                 <button 
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-md top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
@@ -257,6 +282,18 @@ export function LoginPage({ onSignUp, onSubmit, onGoToLanding }: LoginPageProps)
                 </button>
               </div>
             </div>
+
+            <div className="flex items-center gap-sm px-1 select-none">
+              <input 
+                type="checkbox" 
+                id="mobile-remember" 
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+              />
+              <label htmlFor="mobile-remember" className="font-label-sm text-label-sm text-on-surface-variant cursor-pointer font-medium">Keep me logged in on this device</label>
+            </div>
+
             {/* Submit Button */}
             <button 
               type="submit"
