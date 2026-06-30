@@ -424,7 +424,7 @@ export default function App() {
 
   // Push notifications subscription config
   const setupPushNotifications = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
       console.log('[PushManager] Not supported on this browser.');
       return;
     }
