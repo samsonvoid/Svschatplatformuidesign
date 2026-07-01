@@ -17,6 +17,8 @@ interface ChatWindowProps {
   onSendMessage: (content: string, attachment?: { name: string; type: string; size: number; data: string }, replyTo?: { id: string; senderName: string; content: string }) => void;
   socket?: any;
   onBack?: () => void;
+  onLoadMoreMessages?: (chatId: string, oldestTimestamp: string) => Promise<boolean>;
+  hasMore?: boolean;
 }
 
 export function ChatWindow({
@@ -24,7 +26,9 @@ export function ChatWindow({
   currentUser,
   onSendMessage,
   socket,
-  onBack
+  onBack,
+  onLoadMoreMessages,
+  hasMore = false
 }: ChatWindowProps) {
   const [messageInput, setMessageInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -32,8 +36,12 @@ export function ChatWindow({
   const [typingUserAvatar, setTypingUserAvatar] = useState<string>('');
   const [isInfoOpen, setIsInfoOpen] = useState(true);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   const mainScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastMessageIdRef = useRef<string | null>(null);
+  const prevChatIdRef = useRef<string | null>(null);
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiCategory, setEmojiCategory] = useState<keyof typeof EMOJI_CATEGORIES>('smileys');
@@ -48,15 +56,48 @@ export function ChatWindow({
   const localTypingRef = useRef(false);
   const typingTimeoutRef = useRef<any>(null);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+  const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
     const isScrolledUp = target.scrollHeight - target.scrollTop - target.clientHeight > 300;
     setShowScrollBottom(isScrolledUp);
+
+    // Infinite Scroll trigger: scrolled to the top, hasMore is true, not currently loading, and has messages
+    if (target.scrollTop === 0 && hasMore && !isLoadingMore && chat && chat.messages.length > 0 && onLoadMoreMessages) {
+      setIsLoadingMore(true);
+      const prevScrollHeight = target.scrollHeight;
+      const oldestMsg = chat.messages[0];
+      const oldestTimestamp = oldestMsg.timestamp.toISOString();
+
+      const success = await onLoadMoreMessages(chat.id, oldestTimestamp);
+
+      if (success) {
+        requestAnimationFrame(() => {
+          if (mainScrollRef.current) {
+            const newScrollHeight = mainScrollRef.current.scrollHeight;
+            mainScrollRef.current.scrollTop = newScrollHeight - prevScrollHeight;
+          }
+        });
+      }
+      setIsLoadingMore(false);
+    }
   };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-  }, [chat?.messages]);
+    if (!chat) return;
+
+    const messages = chat.messages || [];
+    const lastMsg = messages[messages.length - 1];
+    const lastMsgId = lastMsg ? lastMsg.id : null;
+    const isNewChatSelected = prevChatIdRef.current !== chat.id;
+
+    // Scroll to bottom only on new conversation selection or new incoming/outgoing message
+    if (isNewChatSelected || (lastMsgId && lastMsgId !== lastMessageIdRef.current)) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    }
+
+    lastMessageIdRef.current = lastMsgId;
+    prevChatIdRef.current = chat.id;
+  }, [chat?.id, chat?.messages?.length]);
 
   // Listen to typing status from socket
   useEffect(() => {

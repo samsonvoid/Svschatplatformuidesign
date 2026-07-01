@@ -422,6 +422,7 @@ export default function App() {
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [inAppNotificationToast, setInAppNotificationToast] = useState<any | null>(null);
   const [mutedChats, setMutedChats] = useState<{[chatId: string]: string}>({});
+  const [hasMoreMap, setHasMoreMap] = useState<{[chatId: string]: boolean}>({});
 
   const [socketStatus, setSocketStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
   const [socket, setSocket] = useState<any>(null);
@@ -938,7 +939,7 @@ export default function App() {
       })
       .catch(err => console.error('[Room Notifications Sync] Failed:', err));
 
-    fetch(`${SOCKET_URL}/api/chats/${selectedChatId}/messages`, {
+    fetch(`${SOCKET_URL}/api/chats/${selectedChatId}/messages?limit=10`, {
       headers: {
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       },
@@ -946,6 +947,11 @@ export default function App() {
     })
       .then(res => res.json())
       .then(msgs => {
+        setHasMoreMap(prev => ({
+          ...prev,
+          [selectedChatId]: msgs.length === 10
+        }));
+
         setChats(prevChats => prevChats.map(c => {
           if (c.id === selectedChatId) {
             return {
@@ -966,6 +972,48 @@ export default function App() {
       socket.emit('leave-chat', selectedChatId);
     };
   }, [socket, selectedChatId, currentUser.id]);
+
+  const handleLoadMoreMessages = async (chatId: string, oldestTimestamp: string) => {
+    const token = sessionStorage.getItem('collabhub_token');
+    try {
+      const res = await fetch(`${SOCKET_URL}/api/chats/${chatId}/messages?before=${oldestTimestamp}&limit=10`, {
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        credentials: 'include'
+      });
+      const msgs = await res.json();
+
+      setHasMoreMap(prev => ({
+        ...prev,
+        [chatId]: msgs.length === 10
+      }));
+
+      if (msgs.length > 0) {
+        setChats(prevChats => prevChats.map(c => {
+          if (c.id === chatId) {
+            const mappedMsgs = msgs.map((m: any) => ({
+              ...m,
+              timestamp: new Date(m.timestamp)
+            }));
+
+            const existingIds = new Set(c.messages.map(msg => msg.id));
+            const newMsgs = mappedMsgs.filter((msg: any) => !existingIds.has(msg.id));
+
+            return {
+              ...c,
+              messages: [...newMsgs, ...c.messages]
+            };
+          }
+          return c;
+        }));
+      }
+      return msgs.length > 0;
+    } catch (err) {
+      console.error('Error loading older messages:', err);
+      return false;
+    }
+  };
 
   // Synthesize a premium notification chime (two-tone bell sound)
   const playNotificationChime = () => {
@@ -1576,6 +1624,8 @@ export default function App() {
                   onSendMessage={handleSendMessage}
                   socket={socket}
                   onBack={() => setSelectedChatId(null)}
+                  onLoadMoreMessages={handleLoadMoreMessages}
+                  hasMore={hasMoreMap[selectedChatId || ''] !== false}
                 />
               </div>
             </div>
