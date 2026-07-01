@@ -113,6 +113,26 @@ export function ChatWindow({
     }
   };
 
+  const handleDeleteMessage = (messageId: string, isLocal: boolean) => {
+    if (isLocal) {
+      try {
+        const saved = localStorage.getItem('collabhub_hidden_messages');
+        const list = saved ? JSON.parse(saved) : [];
+        if (!list.includes(messageId)) {
+          list.push(messageId);
+          localStorage.setItem('collabhub_hidden_messages', JSON.stringify(list));
+        }
+        window.dispatchEvent(new Event('collabhub_hidden_messages_changed'));
+      } catch (err) {
+        console.error('[ChatWindow] Error saving local hidden message:', err);
+      }
+    } else {
+      if (socket && chat) {
+        socket.emit('delete-message', { messageId, conversationId: chat.id });
+      }
+    }
+  };
+
   const compressImage = (file: File, callback: (dataUrl: string, size: number) => void) => {
     if (!file.type.startsWith('image/')) {
       const reader = new FileReader();
@@ -459,10 +479,9 @@ export function ChatWindow({
                   isOwn={message.senderId === currentUser.id}
                   senderName={senderName}
                   isGroup={isGroup}
-                  onDeleteMessage={(messageId) => {
-                    if (socket && chat) {
-                      socket.emit('delete-message', { messageId, conversationId: chat.id });
-                    }
+                  isAdmin={currentUser.role === 'admin' || currentUser.role === 'superadmin'}
+                  onDeleteMessage={(messageId, isLocal) => {
+                    handleDeleteMessage(messageId, isLocal);
                   }}
                   onReply={(msg) => setReplyToMessage(msg)}
                 />

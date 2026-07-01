@@ -6,11 +6,26 @@ interface MessageBubbleProps {
   isOwn: boolean;
   senderName: string;
   isGroup?: boolean;
-  onDeleteMessage?: (messageId: string) => void;
+  isAdmin?: boolean;
+  onDeleteMessage?: (messageId: string, isLocal: boolean) => void;
   onReply?: (message: Message) => void;
 }
 
 const renderAttachment = (attachment: NonNullable<Message['attachment']>, isOwnMsg: boolean) => {
+  if (attachment.url === 'expired') {
+    return (
+      <div className="mb-xs w-[280px] max-w-full rounded-xl p-md border border-dashed border-outline-variant/60 flex items-center gap-md bg-surface-container-low text-on-surface-variant flex-shrink-0 select-none">
+        <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+          <span className="material-symbols-outlined text-[20px] text-slate-400">hourglass_empty</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-label-md text-xs font-bold truncate">{attachment.name}</p>
+          <p className="font-label-sm text-[10px] text-red-500 font-medium">File expired to save server storage</p>
+        </div>
+      </div>
+    );
+  }
+
   const isImg = attachment.type.startsWith('image/');
   const downloadUrl = attachment.url.startsWith('data:') ? attachment.url : `${SOCKET_URL}${attachment.url}`;
   
@@ -135,6 +150,7 @@ export function MessageBubble({
   isOwn,
   senderName,
   isGroup = false,
+  isAdmin = false,
   onDeleteMessage,
   onReply
 }: MessageBubbleProps) {
@@ -202,7 +218,7 @@ export function MessageBubble({
         <div className="flex items-center gap-sm max-w-full">
           {/* Delete Button (Only visible on hover) */}
           <button 
-            onClick={() => onDeleteMessage && onDeleteMessage(message.id)}
+            onClick={() => onDeleteMessage && onDeleteMessage(message.id, false)}
             className="opacity-0 group-hover/msg:opacity-100 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-red-500 transition-all cursor-pointer flex-shrink-0"
             title="Delete Message"
           >
@@ -300,6 +316,15 @@ export function MessageBubble({
           title="Reply to Message"
         >
           <span className="material-symbols-outlined text-[16px]">reply</span>
+        </button>
+
+        {/* Delete Button (Only visible on hover) */}
+        <button 
+          onClick={() => onDeleteMessage && onDeleteMessage(message.id, !isAdmin)}
+          className="opacity-0 group-hover/msg:opacity-100 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-red-500 transition-all cursor-pointer flex-shrink-0"
+          title={isAdmin ? "Delete Message (Global)" : "Hide Message (Local)"}
+        >
+          <span className="material-symbols-outlined text-[16px]">delete</span>
         </button>
       </div>
 

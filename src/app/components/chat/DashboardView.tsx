@@ -30,11 +30,18 @@ export function DashboardView({
     (user.bio && user.bio.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const filteredActivity = recentActivity.filter(act => 
-    act.senderName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    act.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (act.groupName && act.groupName.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredActivity = recentActivity.filter(act => {
+    try {
+      const saved = localStorage.getItem('collabhub_hidden_messages');
+      const hiddenSet = saved ? new Set<string>(JSON.parse(saved)) : new Set<string>();
+      if (hiddenSet.has(act.id)) return false;
+    } catch {
+      // Ignore
+    }
+    return act.senderName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      act.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (act.groupName && act.groupName.toLowerCase().includes(searchQuery.toLowerCase()));
+  });
 
   // Helper to resolve high-res premium avatars
   const getAvatarUrl = (avatar: string | null | undefined) => {

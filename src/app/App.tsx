@@ -126,6 +126,14 @@ export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [chats, setChats] = useState<Chat[]>([]);
+  const [hiddenMessageIds, setHiddenMessageIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('collabhub_hidden_messages');
+      return saved ? new Set<string>(JSON.parse(saved)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
   const [sharedFiles, setSharedFiles] = useState<any[]>([]);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -210,6 +218,22 @@ export default function App() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Listen to local hidden messages updates
+  useEffect(() => {
+    const handleHiddenMessagesChanged = () => {
+      try {
+        const saved = localStorage.getItem('collabhub_hidden_messages');
+        setHiddenMessageIds(saved ? new Set<string>(JSON.parse(saved)) : new Set<string>());
+      } catch {
+        // Ignore parsing errors
+      }
+    };
+    window.addEventListener('collabhub_hidden_messages_changed', handleHiddenMessagesChanged);
+    return () => {
+      window.removeEventListener('collabhub_hidden_messages_changed', handleHiddenMessagesChanged);
     };
   }, []);
 
@@ -1118,7 +1142,11 @@ export default function App() {
     });
   };
 
-  const selectedChat = chats.find(chat => chat.id === selectedChatId);
+  const selectedChatRaw = chats.find(chat => chat.id === selectedChatId);
+  const selectedChat = selectedChatRaw ? {
+    ...selectedChatRaw,
+    messages: selectedChatRaw.messages.filter(m => !hiddenMessageIds.has(m.id))
+  } : undefined;
 
   if (authView === 'landing') {
     return (
