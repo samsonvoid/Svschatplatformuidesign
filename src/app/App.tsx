@@ -57,6 +57,14 @@ export interface Message {
     size: number;
     url: string;
   };
+  metadata?: {
+    replyTo?: {
+      id: string;
+      senderName: string;
+      content: string;
+    };
+    [key: string]: any;
+  };
 }
 
 export interface Chat {
@@ -982,47 +990,51 @@ export default function App() {
         playNotificationChime();
       }
 
-      setChats(prevChats => prevChats.map(c => {
-        if (c.id === message.conversationId) {
-          const isSelected = selectedChatId === message.conversationId;
-          
-          // If this is an echo of our own optimistic message, replace it instead of duplicating
-          const existingTempMsgIndex = c.messages.findIndex(m => m.id === message.tempId);
-          let newMessages;
+      setChats(prevChats => {
+        const mapped = prevChats.map(c => {
+          if (c.id === message.conversationId) {
+            const isSelected = selectedChatId === message.conversationId;
+            
+            // If this is an echo of our own optimistic message, replace it instead of duplicating
+            const existingTempMsgIndex = c.messages.findIndex(m => m.id === message.tempId);
+            let newMessages;
 
-          const finalMessage = {
-            id: message.id,
-            senderId: message.senderId,
-            senderName: message.senderName,
-            senderAvatar: message.senderAvatar,
-            content: message.content,
-            timestamp: new Date(message.timestamp),
-            status: message.status,
-            attachment: message.attachment
-          };
+            const finalMessage = {
+              id: message.id,
+              senderId: message.senderId,
+              senderName: message.senderName,
+              senderAvatar: message.senderAvatar,
+              content: message.content,
+              timestamp: new Date(message.timestamp),
+              status: message.status,
+              attachment: message.attachment,
+              metadata: message.metadata
+            };
 
-          if (existingTempMsgIndex !== -1) {
-            newMessages = [...c.messages];
-            newMessages[existingTempMsgIndex] = finalMessage;
-          } else {
-            newMessages = [...c.messages, finalMessage];
+            if (existingTempMsgIndex !== -1) {
+              newMessages = [...c.messages];
+              newMessages[existingTempMsgIndex] = finalMessage;
+            } else {
+              newMessages = [...c.messages, finalMessage];
+            }
+
+            let lastMsgText = message.content;
+            if (!lastMsgText && message.attachment) {
+              lastMsgText = message.attachment.type.startsWith('image/') ? '📷 Image' : '📄 File';
+            }
+
+            return {
+              ...c,
+              messages: newMessages,
+              lastMessage: c.type === 'group' ? `${message.senderName}: ${lastMsgText}` : lastMsgText,
+              lastMessageTime: new Date(message.timestamp),
+              unreadCount: isSelected || message.senderId === currentUser.id ? 0 : c.unreadCount + 1
+            };
           }
-
-          let lastMsgText = message.content;
-          if (!lastMsgText && message.attachment) {
-            lastMsgText = message.attachment.type.startsWith('image/') ? '📷 Image' : '📄 File';
-          }
-
-          return {
-            ...c,
-            messages: newMessages,
-            lastMessage: c.type === 'group' ? `${message.senderName}: ${lastMsgText}` : lastMsgText,
-            lastMessageTime: new Date(message.timestamp),
-            unreadCount: isSelected || message.senderId === currentUser.id ? 0 : c.unreadCount + 1
-          };
-        }
-        return c;
-      }));
+          return c;
+        });
+        return [...mapped].sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime());
+      });
 
       // Emit delivery or read status to the server
       if (message.senderId !== currentUser.id) {
@@ -1042,7 +1054,11 @@ export default function App() {
   }, [socket, selectedChatId, currentUser.id]);
 
   // 5. Send message via Socket connection
-  const handleSendMessage = (content: string, attachment?: { name: string; type: string; size: number; data: string }) => {
+  const handleSendMessage = (
+    content: string, 
+    attachment?: { name: string; type: string; size: number; data: string },
+    replyTo?: { id: string; senderName: string; content: string }
+  ) => {
     if (!selectedChatId) return;
     if (!content.trim() && !attachment) return;
 
@@ -1062,7 +1078,8 @@ export default function App() {
         type: attachment.type,
         size: attachment.size,
         url: attachment.data // base64 string for local optimistic render
-      } : undefined
+      } : undefined,
+      metadata: replyTo ? { replyTo } : undefined
     };
 
     let lastMsgText = contentTrimmed;
@@ -1070,17 +1087,20 @@ export default function App() {
       lastMsgText = attachment.type.startsWith('image/') ? '📷 Image' : '📄 File';
     }
 
-    setChats(prevChats => prevChats.map(c => {
-      if (c.id === selectedChatId) {
-        return {
-          ...c,
-          messages: [...c.messages, optimisticMessage],
-          lastMessage: lastMsgText,
-          lastMessageTime: optimisticMessage.timestamp
-        };
-      }
-      return c;
-    }));
+    setChats(prevChats => {
+      const mapped = prevChats.map(c => {
+        if (c.id === selectedChatId) {
+          return {
+            ...c,
+            messages: [...c.messages, optimisticMessage],
+            lastMessage: lastMsgText,
+            lastMessageTime: optimisticMessage.timestamp
+          };
+        }
+        return c;
+      });
+      return [...mapped].sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime());
+    });
 
     // 2. Transmit to backend
     socket?.emit('send-message', {
@@ -1093,7 +1113,8 @@ export default function App() {
         type: attachment.type,
         size: attachment.size,
         data: attachment.data // base64 string
-      } : undefined
+      } : undefined,
+      metadata: replyTo ? { replyTo } : undefined
     });
   };
 

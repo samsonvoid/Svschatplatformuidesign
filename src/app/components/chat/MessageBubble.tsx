@@ -7,6 +7,7 @@ interface MessageBubbleProps {
   senderName: string;
   isGroup?: boolean;
   onDeleteMessage?: (messageId: string) => void;
+  onReply?: (message: Message) => void;
 }
 
 const renderAttachment = (attachment: NonNullable<Message['attachment']>, isOwnMsg: boolean) => {
@@ -134,7 +135,8 @@ export function MessageBubble({
   isOwn,
   senderName,
   isGroup = false,
-  onDeleteMessage
+  onDeleteMessage,
+  onReply
 }: MessageBubbleProps) {
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', {
@@ -196,7 +198,7 @@ export function MessageBubble({
 
   if (isOwn) {
     return (
-      <div className="flex flex-col items-end gap-xs ml-auto max-w-[85%] group/msg">
+      <div className="flex flex-col items-end gap-xs ml-auto max-w-[85%] group/msg" id={`message-${message.id}`}>
         <div className="flex items-center gap-sm max-w-full">
           {/* Delete Button (Only visible on hover) */}
           <button 
@@ -206,9 +208,31 @@ export function MessageBubble({
           >
             <span className="material-symbols-outlined text-[16px]">delete</span>
           </button>
+
+          {/* Reply Button (Only visible on hover) */}
+          <button 
+            onClick={() => onReply && onReply(message)}
+            className="opacity-0 group-hover/msg:opacity-100 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-primary transition-all cursor-pointer flex-shrink-0"
+            title="Reply to Message"
+          >
+            <span className="material-symbols-outlined text-[16px]">reply</span>
+          </button>
           
           {/* Outgoing Bubble */}
           <div className="flex flex-col items-end gap-xs max-w-full">
+            {message.metadata?.replyTo && (
+              <div 
+                onClick={() => {
+                  const el = document.getElementById(`message-${message.metadata?.replyTo?.id}`);
+                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+                className="bg-primary-container/20 hover:bg-primary-container/30 text-white/90 p-xs px-sm rounded-lg text-left border-l-2 border-white/60 mb-1 font-label-sm text-[10px] max-w-[280px] cursor-pointer transition-all truncate"
+                title="Jump to message"
+              >
+                <p className="font-bold text-[8px] opacity-75">Replying to {message.metadata.replyTo.senderName}</p>
+                <p className="truncate opacity-90">{message.metadata.replyTo.content || 'Attachment'}</p>
+              </div>
+            )}
             {message.attachment && renderAttachment(message.attachment, true)}
             {message.content && (
               <div className="bg-primary p-md rounded-xl rounded-tr-none shadow-sm text-on-primary min-w-0">
@@ -231,7 +255,7 @@ export function MessageBubble({
   const recipientAvatarUrl = getAvatarUrl(message.senderAvatar);
 
   return (
-    <div className="flex flex-col gap-xs max-w-[85%] items-start self-start">
+    <div className="flex flex-col gap-xs max-w-[85%] items-start self-start group/msg" id={`message-${message.id}`}>
       {/* Participant Header Info */}
       <div className="flex items-center gap-sm mb-1 px-1">
         <div className={`w-6 h-6 rounded-full ${recipientAvatarUrl ? '' : getAvatarBg(senderName)} flex items-center justify-center overflow-hidden`}>
@@ -246,13 +270,37 @@ export function MessageBubble({
       </div>
 
       {/* Bubble Container */}
-      <div className="flex flex-col items-start gap-xs max-w-full">
-        {message.attachment && renderAttachment(message.attachment, false)}
-        {message.content && (
-          <div className="bg-surface-container-highest p-md rounded-xl rounded-tl-none border border-outline-variant/30 text-on-surface">
-            <p className="font-body-md whitespace-pre-wrap break-words">{message.content}</p>
-          </div>
-        )}
+      <div className="flex items-center gap-sm max-w-full">
+        <div className="flex flex-col items-start gap-xs max-w-full">
+          {message.metadata?.replyTo && (
+            <div 
+              onClick={() => {
+                const el = document.getElementById(`message-${message.metadata?.replyTo?.id}`);
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }}
+              className="bg-slate-100 dark:bg-slate-800/80 text-on-surface-variant p-xs px-sm rounded-lg text-left border-l-2 border-primary mb-1 font-label-sm text-[10px] max-w-[280px] cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700/80 transition-all truncate"
+              title="Jump to message"
+            >
+              <p className="font-bold text-[8px] text-primary">Replying to {message.metadata.replyTo.senderName}</p>
+              <p className="truncate dark:text-slate-300">{message.metadata.replyTo.content || 'Attachment'}</p>
+            </div>
+          )}
+          {message.attachment && renderAttachment(message.attachment, false)}
+          {message.content && (
+            <div className="bg-surface-container-highest p-md rounded-xl rounded-tl-none border border-outline-variant/30 text-on-surface">
+              <p className="font-body-md whitespace-pre-wrap break-words">{message.content}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Reply Button (Only visible on hover) */}
+        <button 
+          onClick={() => onReply && onReply(message)}
+          className="opacity-0 group-hover/msg:opacity-100 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-primary transition-all cursor-pointer flex-shrink-0"
+          title="Reply to Message"
+        >
+          <span className="material-symbols-outlined text-[16px]">reply</span>
+        </button>
       </div>
 
       {/* Premium Rich Link Card Preview (If content has a URL) */}

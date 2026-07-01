@@ -127,16 +127,16 @@
   --font-family-headline-lg: 'Geist', sans-serif;
 
   /* Custom Font Sizes */
-  --text-body-sm: 14px;
-  --text-headline-lg-mobile: 28px;
-  --text-headline-xl: 40px;
-  --text-label-sm: 12px;
-  --text-headline-md: 24px;
-  --text-body-lg: 18px;
-  --text-headline-sm: 20px;
-  --text-label-md: 14px;
-  --text-body-md: 16px;
-  --text-headline-lg: 32px;
+  --text-body-sm: calc(var(--font-size) * 0.875);
+  --text-headline-lg-mobile: calc(var(--font-size) * 1.75);
+  --text-headline-xl: calc(var(--font-size) * 2.5);
+  --text-label-sm: calc(var(--font-size) * 0.75);
+  --text-headline-md: calc(var(--font-size) * 1.5);
+  --text-body-lg: calc(var(--font-size) * 1.125);
+  --text-headline-sm: calc(var(--font-size) * 1.25);
+  --text-label-md: calc(var(--font-size) * 0.875);
+  --text-body-md: calc(var(--font-size) * 1.0);
+  --text-headline-lg: calc(var(--font-size) * 2.0);
 }
 
 @layer base {

@@ -290,7 +290,7 @@ export function DashboardView({
         </section>
 
         {/* Recent Message Activity Bento (Dynamic DB Query) */}
-        <section className="col-span-12 bg-white border border-outline-variant rounded-xl p-lg shadow-sm hover:shadow-md transition-shadow">
+        <section className="col-span-12 bg-white dark:bg-card border border-outline-variant dark:border-border rounded-xl p-lg shadow-sm hover:shadow-md transition-shadow">
           <div className="flex justify-between items-center mb-lg">
             <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">Recent Message Activity</h2>
             <button 

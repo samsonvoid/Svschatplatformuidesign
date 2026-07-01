@@ -179,6 +179,51 @@ export function SettingsView({
     }
   };
 
+  const updateCustomizationSetting = (updates: Partial<User>) => {
+    const updatedUser: User = {
+      ...currentUser,
+      name: fullName.trim() || currentUser.name,
+      avatar: avatarPreview || currentUser.avatar,
+      username,
+      bio,
+      theme,
+      accentColor,
+      fontSize,
+      newMessagesAlert: pushEnabled,
+      mentionsOnlyAlert: false,
+      soundEffectsAlert: soundEnabled,
+      ...updates
+    };
+    onUpdateUser(updatedUser);
+  };
+
+  const saveNotificationsToServer = (push: boolean, sound: boolean) => {
+    const token = sessionStorage.getItem('collabhub_token');
+    fetch(`${SOCKET_URL}/api/notifications/settings`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        push_enabled: push,
+        sound: sound,
+        vibration: vibrationEnabled,
+        popup: popupEnabled,
+        show_preview: showPreviewEnabled,
+        dnd_start: dndActive ? dndStart + ':00' : null,
+        dnd_end: dndActive ? dndEnd + ':00' : null
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) {
+        console.error('Failed to auto-save notification settings:', data.message);
+      }
+    })
+    .catch(err => console.error('Error auto-saving settings:', err));
+  };
+
   // Perform Save action
   const handleSaveProfile = () => {
     const updatedUser: User = {
@@ -394,6 +439,7 @@ export function SettingsView({
                         onClick={() => {
                           setAccentColor(c.value);
                           setAccentLabel(c.label);
+                          updateCustomizationSetting({ accentColor: c.value });
                           showToast(`Accent highlights set to: ${c.label}`, 'success');
                         }}
                         className={`aspect-square w-9 h-9 rounded-full transition-all hover:scale-110 active:scale-90 cursor-pointer ${c.bg} ${
@@ -419,6 +465,7 @@ export function SettingsView({
                         key={mode}
                         onClick={() => {
                           setTheme(mode);
+                          updateCustomizationSetting({ theme: mode });
                           showToast(`Theme updated to ${mode} mode`, 'success');
                         }}
                         className={`w-full flex items-center justify-between p-sm border rounded-lg transition-all cursor-pointer ${
@@ -454,6 +501,7 @@ export function SettingsView({
                         onClick={() => {
                           const next = fontSize === 'small' ? 'medium' : fontSize === 'medium' ? 'large' : 'small';
                           setFontSize(next);
+                          updateCustomizationSetting({ fontSize: next });
                           showToast(`Font scaling changed to: ${next}`, 'info');
                         }}
                         className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-primary border-2 border-white rounded-full shadow-md cursor-pointer transition-all"
@@ -464,9 +512,9 @@ export function SettingsView({
                       ></div>
                     </div>
                     <div className="flex justify-between font-label-sm text-label-sm text-on-surface-variant">
-                      <span className={`cursor-pointer ${fontSize === 'small' ? 'text-primary font-bold' : ''}`} onClick={() => { setFontSize('small'); showToast('Font size set to Small', 'info'); }}>Small</span>
-                      <span className={`cursor-pointer ${fontSize === 'medium' ? 'text-primary font-bold' : ''}`} onClick={() => { setFontSize('medium'); showToast('Font size set to Medium', 'info'); }}>Medium</span>
-                      <span className={`cursor-pointer ${fontSize === 'large' ? 'text-primary font-bold' : ''}`} onClick={() => { setFontSize('large'); showToast('Font size set to Large', 'info'); }}>Large</span>
+                      <span className={`cursor-pointer ${fontSize === 'small' ? 'text-primary font-bold' : ''}`} onClick={() => { setFontSize('small'); updateCustomizationSetting({ fontSize: 'small' }); showToast('Font size set to Small', 'info'); }}>Small</span>
+                      <span className={`cursor-pointer ${fontSize === 'medium' ? 'text-primary font-bold' : ''}`} onClick={() => { setFontSize('medium'); updateCustomizationSetting({ fontSize: 'medium' }); showToast('Font size set to Medium', 'info'); }}>Medium</span>
+                      <span className={`cursor-pointer ${fontSize === 'large' ? 'text-primary font-bold' : ''}`} onClick={() => { setFontSize('large'); updateCustomizationSetting({ fontSize: 'large' }); showToast('Font size set to Large', 'info'); }}>Large</span>
                     </div>
                   </div>
                 </div>
@@ -490,7 +538,13 @@ export function SettingsView({
                     </div>
                   </div>
                   <div className="flex justify-end mt-sm">
-                    <Toggle checked={pushEnabled} onChange={() => { setPushEnabled(!pushEnabled); showToast(`Push Notifications ${!pushEnabled ? 'enabled' : 'disabled'}`, 'info'); }} />
+                    <Toggle checked={pushEnabled} onChange={() => { 
+                      const next = !pushEnabled; 
+                      setPushEnabled(next); 
+                      saveNotificationsToServer(next, soundEnabled);
+                      updateCustomizationSetting({ newMessagesAlert: next });
+                      showToast(`Push Notifications ${next ? 'enabled' : 'disabled'}`, 'info'); 
+                    }} />
                   </div>
                 </div>
 
@@ -504,7 +558,13 @@ export function SettingsView({
                     </div>
                   </div>
                   <div className="flex justify-end mt-sm">
-                    <Toggle checked={soundEnabled} onChange={() => { setSoundEnabled(!soundEnabled); showToast(`Notification Sound ${!soundEnabled ? 'enabled' : 'muted'}`, 'info'); }} />
+                    <Toggle checked={soundEnabled} onChange={() => { 
+                      const next = !soundEnabled; 
+                      setSoundEnabled(next); 
+                      saveNotificationsToServer(pushEnabled, next);
+                      updateCustomizationSetting({ soundEffectsAlert: next });
+                      showToast(`Notification Sound ${next ? 'enabled' : 'muted'}`, 'info'); 
+                    }} />
                   </div>
                 </div>
 

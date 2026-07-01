@@ -14,7 +14,7 @@ const EMOJI_CATEGORIES = {
 interface ChatWindowProps {
   chat: Chat | undefined;
   currentUser: User;
-  onSendMessage: (content: string, attachment?: { name: string; type: string; size: number; data: string }) => void;
+  onSendMessage: (content: string, attachment?: { name: string; type: string; size: number; data: string }, replyTo?: { id: string; senderName: string; content: string }) => void;
   socket?: any;
   onBack?: () => void;
 }
@@ -38,6 +38,7 @@ export function ChatWindow({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiCategory, setEmojiCategory] = useState<keyof typeof EMOJI_CATEGORIES>('smileys');
   const [selectedFile, setSelectedFile] = useState<{ name: string; type: string; size: number; data: string } | null>(null);
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
 
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,9 +88,14 @@ export function ChatWindow({
 
   const handleSend = () => {
     if (messageInput.trim() || selectedFile) {
-      onSendMessage(messageInput, selectedFile || undefined);
+      onSendMessage(
+        messageInput, 
+        selectedFile || undefined,
+        replyToMessage ? { id: replyToMessage.id, senderName: replyToMessage.senderName || 'User', content: replyToMessage.content } : undefined
+      );
       setMessageInput('');
       setSelectedFile(null);
+      setReplyToMessage(null);
       
       // Clear typing status immediately on send
       if (socket && chat) {
@@ -458,6 +464,7 @@ export function ChatWindow({
                       socket.emit('delete-message', { messageId, conversationId: chat.id });
                     }
                   }}
+                  onReply={(msg) => setReplyToMessage(msg)}
                 />
               );
             })}
@@ -506,6 +513,24 @@ export function ChatWindow({
         {/* Message Input Area */}
         <footer className="p-lg bg-surface border-t border-outline-variant flex-shrink-0 relative">
           
+          {/* Replying to Message Preview Bar */}
+          {replyToMessage && (
+            <div className="mb-md p-sm bg-primary/5 dark:bg-primary/10 border-l-4 border-primary rounded-r-xl flex items-center justify-between animate-fade-in">
+              <div className="min-w-0 flex-1">
+                <p className="font-label-sm text-[10px] text-primary font-bold">Replying to {replyToMessage.senderName}</p>
+                <p className="font-body-sm text-body-sm text-on-surface-variant dark:text-slate-300 truncate pr-md">
+                  {replyToMessage.content || (replyToMessage.attachment ? '📷 Attachment' : '')}
+                </p>
+              </div>
+              <button 
+                onClick={() => setReplyToMessage(null)}
+                className="p-xs hover:bg-surface-container rounded-full text-on-surface-variant hover:text-red-500 transition-colors cursor-pointer border-none bg-transparent"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+          )}
+
           {/* File Attachment Preview Bar */}
           {selectedFile && (
             <div className="mb-md p-sm bg-surface-container-low border border-outline-variant rounded-xl flex items-center justify-between animate-fade-in">
